@@ -10,6 +10,7 @@ LOG_FILE="$ROOT_DIR/cache/linkss.log"
 CONVERT_BIN="$LINKSS_DIR/bin/convert"
 TMP_REFRESH_IMAGE="$ROOT_DIR/cache/restore-visible.png"
 BOARD_IMAGE_CACHE="$ROOT_DIR/cache/latest.png"
+NORMAL_SCREENSAVER_DIR="${KFB_NORMAL_SCREENSAVER_DIR:-$ROOT_DIR/normal-screensavers}"
 
 mkdir -p "$ROOT_DIR/cache"
 
@@ -29,13 +30,13 @@ first_existing() {
 }
 
 prepare_refresh_image() {
-  candidate="$(first_existing "$TARGET_DIR"/*.png "$TARGET_DIR"/*.PNG || true)"
+  candidate="$(first_existing "$NORMAL_SCREENSAVER_DIR"/*.png "$NORMAL_SCREENSAVER_DIR"/*.PNG "$TARGET_DIR"/*.png "$TARGET_DIR"/*.PNG || true)"
   if [ -n "$candidate" ]; then
     printf '%s\n' "$candidate"
     return 0
   fi
 
-  candidate="$(first_existing "$TARGET_DIR"/*.jpg "$TARGET_DIR"/*.JPG "$TARGET_DIR"/*.jpeg "$TARGET_DIR"/*.JPEG || true)"
+  candidate="$(first_existing "$NORMAL_SCREENSAVER_DIR"/*.jpg "$NORMAL_SCREENSAVER_DIR"/*.JPG "$NORMAL_SCREENSAVER_DIR"/*.jpeg "$NORMAL_SCREENSAVER_DIR"/*.JPEG "$TARGET_DIR"/*.jpg "$TARGET_DIR"/*.JPG "$TARGET_DIR"/*.jpeg "$TARGET_DIR"/*.JPEG || true)"
   if [ -n "$candidate" ] && [ -x "$CONVERT_BIN" ]; then
     rm -f "$TMP_REFRESH_IMAGE"
     if "$CONVERT_BIN" "$candidate" "$TMP_REFRESH_IMAGE" >/dev/null 2>&1; then
@@ -52,6 +53,10 @@ prepare_refresh_image() {
 if [ ! -f "$STATE_DIR/active" ]; then
   log "no active morning screensaver state to restore"
   exit 0
+fi
+
+if [ -x "$ROOT_DIR/install_normal_screensavers.sh" ] && [ -d "$NORMAL_SCREENSAVER_DIR" ]; then
+  "$ROOT_DIR/install_normal_screensavers.sh" "$ROOT_DIR" "$NORMAL_SCREENSAVER_DIR" >> "$LOG_FILE" 2>&1 || log "normal screensaver install failed"
 fi
 
 TARGET_DIR="$SCREENSAVER_DIR"

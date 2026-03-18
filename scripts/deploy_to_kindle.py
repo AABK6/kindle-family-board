@@ -31,6 +31,20 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Upload output/latest.png directly to the Kindle cache and display it immediately.",
     )
+    parser.add_argument(
+        "--upload-normal-screensavers",
+        action="store_true",
+        help="Upload output/new-screensavers/*.png as the Kindle's normal screensaver set.",
+    )
+    parser.add_argument(
+        "--normal-screensavers-dir",
+        help="Local directory containing 600x800 screensavers to upload. Defaults to output/new-screensavers.",
+    )
+    parser.add_argument(
+        "--install-normal-screensavers",
+        action="store_true",
+        help="Install the uploaded normal screensaver set into linkss/screensavers immediately.",
+    )
     return parser.parse_args()
 
 
@@ -70,6 +84,7 @@ def main() -> int:
             upload_file(sftp, REPO_ROOT / "kindle" / "start_board_watchdog.sh", f"{remote_root}/start_board_watchdog.sh")
             upload_file(sftp, REPO_ROOT / "kindle" / "stop_board_watchdog.sh", f"{remote_root}/stop_board_watchdog.sh")
             upload_file(sftp, REPO_ROOT / "kindle" / "one_shot_screensaver_refresh.sh", f"{remote_root}/one_shot_screensaver_refresh.sh")
+            upload_file(sftp, REPO_ROOT / "kindle" / "install_normal_screensavers.sh", f"{remote_root}/install_normal_screensavers.sh")
 
             board_env = "\n".join(
                 [
@@ -77,6 +92,7 @@ def main() -> int:
                     f"export CACHE_DIR={remote_root}/cache",
                     f"export KFB_MORNING_HOLD_SECONDS={hold_seconds}",
                     f"export KFB_LINKSS_SCREENSAVER_NAME={screensaver_name}",
+                    f"export KFB_NORMAL_SCREENSAVER_DIR={remote_root}/normal-screensavers",
                     "export CURL_BIN=/mnt/us/usbnet/bin/curl",
                     "export EIPS_BIN=/usr/sbin/eips",
                     "",
@@ -91,6 +107,19 @@ def main() -> int:
                 if not local_image.exists():
                     raise RuntimeError(f"Current board image not found: {local_image}")
                 upload_file(sftp, local_image, f"{remote_root}/cache/latest.png")
+
+            if args.upload_normal_screensavers:
+                local_normal_dir = Path(args.normal_screensavers_dir) if args.normal_screensavers_dir else REPO_ROOT / "output" / "new-screensavers"
+                if not local_normal_dir.exists():
+                    raise RuntimeError(f"Normal screensavers directory not found: {local_normal_dir}")
+                remote_normal_dir = f"{remote_root}/normal-screensavers"
+                code, _, err = exec_command(client, f"mkdir -p {remote_normal_dir}")
+                if code != 0:
+                    raise RuntimeError(err or f"Failed to create remote screensaver directory: {remote_normal_dir}")
+                for image_path in sorted(local_normal_dir.glob("*.png")):
+                    if image_path.name == "contact-sheet.png":
+                        continue
+                    upload_file(sftp, image_path, f"{remote_normal_dir}/{image_path.name}")
         finally:
             sftp.close()
 
@@ -100,7 +129,8 @@ def main() -> int:
             f"{remote_root}/run_morning_board.sh {remote_root}/persist_morning_screensaver.sh "
             f"{remote_root}/restore_screensavers.sh {remote_root}/restore_after_delay.sh "
             f"{remote_root}/board_screensaver_watchdog.sh {remote_root}/start_board_watchdog.sh "
-            f"{remote_root}/stop_board_watchdog.sh {remote_root}/one_shot_screensaver_refresh.sh"
+            f"{remote_root}/stop_board_watchdog.sh {remote_root}/one_shot_screensaver_refresh.sh "
+            f"{remote_root}/install_normal_screensavers.sh"
         )
         code, _, err = exec_command(client, chmod_cmd)
         if code != 0:
@@ -151,6 +181,18 @@ def main() -> int:
                 sys.stderr.write(err)
             if code != 0:
                 raise RuntimeError("Immediate morning board run failed.")
+
+        if args.install_normal_screensavers:
+            code, out, err = exec_command(
+                client,
+                f". {remote_root}/board.env && {remote_root}/install_normal_screensavers.sh {remote_root} {remote_root}/normal-screensavers",
+                timeout=60.0,
+            )
+            sys.stdout.write(out)
+            if err:
+                sys.stderr.write(err)
+            if code != 0:
+                raise RuntimeError("Normal screensaver install failed.")
     finally:
         client.close()
     return 0

@@ -1,152 +1,177 @@
 # Kindle Family Board
 
-This repo turns a jailbroken Kindle into a daily e-ink family board.
+This repo turns a jailbroken Kindle 4 into a daily family board.
 
-The current implementation is built around a hybrid model:
+Current production behavior:
 
-- a host-side Python job generates a 600x800 PNG and a JSON manifest
-- the Kindle fetches that PNG over Wi-Fi and displays it with `eips`
-- the morning Kindle job also swaps the board into `linkss` so it stays visible while the device sleeps
-- Gemini writes the short reading block for the 9-year-old
-- a local rotating file provides kind morning messages
-- a local word bank provides two simple practice words for the 6-year-old
-- repo-local scripts now handle generation, GitHub Pages publishing, and Kindle deployment
+- the board is rendered in French
+- weather defaults to Wassenaar, NL
+- the reading block prefers short jokes for the older child
+- the visual style uses `burst` corner icons
+- GitHub Pages hosts the daily `latest.png`
+- at `07:00`, the Kindle fetches and shows the board
+- during the morning hold window, the board remains visible even after auto-sleep
+- after the hold window, the Kindle switches back to a curated family photo screensaver set
 
-## Why this shape
+As of March 18, 2026, the timed wake path, the board-on-sleep path, and the restore-to-photos path have all been live-tested on the actual device.
 
-It is the fastest path to something that will actually hold up:
+## Architecture
 
-- rendering stays easy and flexible on a normal machine
-- the Kindle only has to download and show one image
-- Gemini can run off-device, with clean fallbacks when it fails
-- the Kindle 4 wake-at-7:00 story is still uncertain when unplugged, so the repo keeps scheduling and content generation decoupled
+The implementation is intentionally split in two:
+
+- off-device Python renders the board and publishes `latest.png` plus `latest.json`
+- the Kindle only downloads, displays, persists, and later restores screensavers
+
+That keeps the Kindle-side logic small and gives the host side full freedom for layout, weather formatting, and Gemini generation.
 
 ## Repo layout
 
-- [`docs/design-plan.md`](C:\Users\aabec\Scripts\kindle-family-board\docs\design-plan.md): the concrete architecture and unplugged analysis
-- [`scripts/generate_board.py`](C:\Users\aabec\Scripts\kindle-family-board\scripts\generate_board.py): host-side board generator
-- [`kindle/fetch_and_display.sh`](C:\Users\aabec\Scripts\kindle-family-board\kindle\fetch_and_display.sh): Kindle-side pull and render script
-- [`kindle/run_morning_board.sh`](C:\Users\aabec\Scripts\kindle-family-board\kindle\run_morning_board.sh): morning fetch, display, screensaver handoff, and timed restore
-- [`kindle/install_cron.sh`](C:\Users\aabec\Scripts\kindle-family-board\kindle\install_cron.sh): installs a daily Kindle cron entry
-- [`data/kind_messages.txt`](C:\Users\aabec\Scripts\kindle-family-board\data\kind_messages.txt): rotating sweet messages
-- [`data/easy_words.txt`](C:\Users\aabec\Scripts\kindle-family-board\data\easy_words.txt): practice words
-- [`data/fallback_readings.json`](C:\Users\aabec\Scripts\kindle-family-board\data\fallback_readings.json): local fallback jokes
+- [README.md](C:\Users\aabec\Scripts\kindle-family-board\README.md): operational overview
+- [docs/design-plan.md](C:\Users\aabec\Scripts\kindle-family-board\docs\design-plan.md): architecture and validation notes
+- [scripts/generate_board.py](C:\Users\aabec\Scripts\kindle-family-board\scripts\generate_board.py): renders `output/latest.png`
+- [scripts/build_site.py](C:\Users\aabec\Scripts\kindle-family-board\scripts\build_site.py): builds the static `site/` output
+- [scripts/publish_gh_pages.py](C:\Users\aabec\Scripts\kindle-family-board\scripts\publish_gh_pages.py): manual Pages publish helper
+- [scripts/deploy_to_kindle.py](C:\Users\aabec\Scripts\kindle-family-board\scripts\deploy_to_kindle.py): uploads Kindle scripts and optional screensaver assets
+- [scripts/test_restore_cycle.py](C:\Users\aabec\Scripts\kindle-family-board\scripts\test_restore_cycle.py): short compressed end-to-end restore test
+- [scripts/process_download_screensavers.py](C:\Users\aabec\Scripts\kindle-family-board\scripts\process_download_screensavers.py): converts hand-picked family photos into `600x800` grayscale Kindle screensavers
+- [kindle/run_morning_board.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\run_morning_board.sh): morning orchestrator on the Kindle
+- [kindle/restore_after_delay.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\restore_after_delay.sh): delayed restore logic
+- [kindle/restore_screensavers.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\restore_screensavers.sh): restores the normal screensaver set
+- [kindle/install_normal_screensavers.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\install_normal_screensavers.sh): makes the curated photo set canonical on the Kindle
+- [kindle/boot_reseed.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\boot_reseed.sh): re-installs the Kindle cron entry after reboot
+- [kindle/linkss_emergency.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\linkss_emergency.sh): hooks the `linkss` emergency path so cron re-seeding happens automatically at boot
+- [data/kind_messages.txt](C:\Users\aabec\Scripts\kindle-family-board\data\kind_messages.txt): family aphorisms and sweet messages
+- [data/easy_words.txt](C:\Users\aabec\Scripts\kindle-family-board\data\easy_words.txt): reading words for the younger child
+- [data/fallback_readings.json](C:\Users\aabec\Scripts\kindle-family-board\data\fallback_readings.json): fallback jokes
+
+## Current defaults
+
+- `KFB_LOCATION_NAME=Wassenaar`
+- `KFB_LATITUDE=52.1450`
+- `KFB_LONGITUDE=4.4028`
+- `KFB_TIMEZONE=Europe/Amsterdam`
+- `KFB_ICON_STYLE=burst`
+- `KFB_MORNING_HOLD_SECONDS=10800`
+- `KFB_BOARD_URL=https://aabk6.github.io/kindle-family-board/latest.png`
+
+The board content is French-first. The weather block shows only morning and afternoon icon, temperature, and rain chance.
 
 ## Quick start
 
 1. Create a venv and install the package.
-2. Review [`.env`](C:\Users\aabec\Scripts\kindle-family-board\.env) and adjust location values if Wassenaar is not correct.
-3. Keep `GEMINI_API_KEY` in your shell environment, or add it to `.env`.
-4. Run:
+2. Review [`.env`](C:\Users\aabec\Scripts\kindle-family-board\.env) if you want to override location, host, or board URL.
+3. Set `GEMINI_API_KEY` in your shell or `.env`.
+4. Generate the board once:
 
 ```bash
 C:\Users\aabec\Scripts\kindle-family-board\.venv\Scripts\python scripts/generate_board.py
 ```
 
-The output lands in `output/latest.png` and `output/latest.json`.
+Output lands in:
 
-## Operational commands
+- [output/latest.png](C:\Users\aabec\Scripts\kindle-family-board\output\latest.png)
+- [output/latest.json](C:\Users\aabec\Scripts\kindle-family-board\output\latest.json)
 
-Generate the board once:
+## Publish path
 
-```bash
-C:\Users\aabec\Scripts\kindle-family-board\.venv\Scripts\python scripts/generate_board.py
-```
+The primary hosting path is GitHub Pages.
 
-Serve the `output/` folder on your local network:
+- [publish-board.yml](C:\Users\aabec\Scripts\kindle-family-board\.github\workflows\publish-board.yml) runs every hour at minute `05`
+- the workflow only publishes during the local `07` hour in `Europe/Amsterdam`
+- the stable image URL is [latest.png](https://aabk6.github.io/kindle-family-board/latest.png)
 
-```bash
-C:\Users\aabec\Scripts\kindle-family-board\.venv\Scripts\python scripts/serve_output.py --generate-first
-```
-
-Build a static `site/` folder for GitHub Pages:
-
-```bash
-C:\Users\aabec\Scripts\kindle-family-board\.venv\Scripts\python scripts/build_site.py
-```
-
-Build and publish the board to the `gh-pages` branch:
+Manual publish fallback:
 
 ```bash
 C:\Users\aabec\Scripts\kindle-family-board\.venv\Scripts\python scripts/publish_gh_pages.py
 ```
 
-Deploy the Kindle-side scripts and install the daily 07:00 cron job:
+Local LAN serving still exists in [scripts/serve_output.py](C:\Users\aabec\Scripts\kindle-family-board\scripts\serve_output.py), but it is now a fallback, not the normal production path.
+
+## Kindle deployment
+
+Deploy the Kindle scripts, install the daily cron entry, install the reboot self-heal hook, and upload the canonical family photo screensaver set:
 
 ```bash
-C:\Users\aabec\Scripts\kindle-family-board\.venv\Scripts\python scripts/deploy_to_kindle.py --install-cron
+C:\Users\aabec\Scripts\kindle-family-board\.venv\Scripts\python scripts/deploy_to_kindle.py --install-cron --install-self-heal --upload-normal-screensavers --install-normal-screensavers
 ```
 
-Run the full morning flow immediately for testing:
+If the Kindle usually sits on a stable IP such as `192.168.2.30`, prefer:
 
 ```bash
-C:\Users\aabec\Scripts\kindle-family-board\.venv\Scripts\python scripts/deploy_to_kindle.py --run-morning-now
+C:\Users\aabec\Scripts\kindle-family-board\.venv\Scripts\python scripts/deploy_to_kindle.py --host 192.168.2.30 --install-cron --install-self-heal --upload-normal-screensavers --install-normal-screensavers
 ```
 
-Run a short restore-cycle test with a 1-minute hold and a forced sleep:
+Immediate morning-flow test:
 
 ```bash
-C:\Users\aabec\Scripts\kindle-family-board\.venv\Scripts\python scripts/test_restore_cycle.py --hold-seconds 60 --force-sleep-after 20
+C:\Users\aabec\Scripts\kindle-family-board\.venv\Scripts\python scripts/deploy_to_kindle.py --host 192.168.2.30 --run-morning-now
 ```
 
-For the first on-device test, use direct image upload instead of HTTP fetch:
+Compressed restore-cycle test:
 
 ```bash
-C:\Users\aabec\Scripts\kindle-family-board\.venv\Scripts\python scripts/deploy_to_kindle.py --upload-current-image
+C:\Users\aabec\Scripts\kindle-family-board\.venv\Scripts\python scripts/test_restore_cycle.py --host 192.168.2.30 --hold-seconds 60 --force-sleep-after 20
 ```
 
-The deploy command assumes:
+## Morning lifecycle
 
-- the Kindle is awake
-- Wi-Fi is on
-- `USBNetwork` is toggled on
-- `Restrict SSH to WiFi, stay in USBMS` is enabled
+The production flow is:
 
-The SSH helper scans the whole local `/24`, not just low addresses, and now caches the last working Kindle IP. If your Kindle usually lands on a stable address such as `192.168.2.30`, set `KFB_KINDLE_HOST` in [`.env`](C:\Users\aabec\Scripts\kindle-family-board\.env) or pass `--host 192.168.2.30` explicitly.
+1. GitHub Pages publishes the daily board image.
+2. The Kindle cron entry in `/etc/crontab/root` runs [kindle/run_morning_board.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\run_morning_board.sh) at `07:00`.
+3. `run_morning_board.sh` downloads and displays the board, then arms the board screensaver watchdog.
+4. During the hold window, the Kindle may auto-sleep, but the board is repainted onto the screensaver event so it remains visible.
+5. After `KFB_MORNING_HOLD_SECONDS`, [kindle/restore_after_delay.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\restore_after_delay.sh) calls [kindle/restore_screensavers.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\restore_screensavers.sh).
+6. The restore path re-installs the canonical photo set from `/mnt/us/kindle-family-board/normal-screensavers` and triggers a one-shot repaint so the visible sleeping cover becomes a family photo again.
 
-## Hosting options
+This is deliberate: the project no longer trusts whatever files happen to be in `linkss/screensavers`. The canonical normal screensaver set lives under the project root on the Kindle.
 
-### Local machine
+## Reboot self-heal
 
-Run `scripts/serve_output.py --generate-first` on a machine that stays on at breakfast time. The Kindle can then fetch `latest.png` from your LAN.
+Kindle cron state is not durable enough to trust blindly after reboot, so the repo installs a self-healing path:
 
-### GitHub Pages
+- [kindle/boot_reseed.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\boot_reseed.sh) rewrites `/etc/crontab/root`
+- [kindle/linkss_emergency.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\linkss_emergency.sh) runs through the `linkss` emergency hook and calls `boot_reseed.sh`
 
-The repo now supports two hosted paths:
+In practice, that means the `07:00` cron job gets re-seeded automatically after boot.
 
-- GitHub Actions publishes directly from [`publish-board.yml`](C:\Users\aabec\Scripts\kindle-family-board\.github\workflows\publish-board.yml)
-- [scripts/publish_gh_pages.py](C:\Users\aabec\Scripts\kindle-family-board\scripts\publish_gh_pages.py) is still available as a manual fallback
+## Family photo screensavers
 
-Both produce the same stable board URL:
+The current normal screensaver set is derived from four manually chosen family photos.
 
-- `https://aabk6.github.io/kindle-family-board/latest.png`
+Local source of truth:
 
-If you still want a local fallback, [scripts/install_windows_tasks.ps1](C:\Users\aabec\Scripts\kindle-family-board\scripts\install_windows_tasks.ps1) creates a `06:55` Windows publish task, but that task is no longer required for normal operation.
+- [output/new-screensavers](C:\Users\aabec\Scripts\kindle-family-board\output\new-screensavers)
+- [C:\Users\aabec\Downloads\kindle-screensavers-600x800](C:\Users\aabec\Downloads\kindle-screensavers-600x800)
 
-## Morning persistence
+The processing helper is:
 
-The `07:00` Kindle cron entry now runs the morning orchestrator instead of a bare fetch:
+```bash
+C:\Users\aabec\Scripts\kindle-family-board\.venv\Scripts\python scripts/process_download_screensavers.py
+```
 
-- it downloads and displays the board
-- it swaps the active `linkss` screensaver set so the board remains visible after the Kindle auto-sleeps
-- it arms a wake-safe restore job that brings back your normal screensavers after `KFB_MORNING_HOLD_SECONDS`
+That script is intentionally manual: it contains crop presets for the current four source photos. If you swap to a new family photo set, update the crop boxes in [scripts/process_download_screensavers.py](C:\Users\aabec\Scripts\kindle-family-board\scripts\process_download_screensavers.py) and redeploy.
 
-Relevant Kindle-side settings:
+## SSH and device access
 
-- `KFB_MORNING_HOLD_SECONDS=10800` keeps the board as the sleep image for 3 hours
-- `KFB_LINKSS_SCREENSAVER_NAME=bg_xsmall_ss00.png` is the temporary file name used inside `linkss/screensavers`
+For maintenance, the Kindle is easiest to manage over Wi-Fi SSH.
 
-## Recommended rollout
+Recommended Kindle-side setting:
 
-1. Start with host-side generation only and review the PNG.
-2. Serve the PNG from a static URL or your local machine with `scripts/serve_output.py`.
-3. Deploy the Kindle scripts with `scripts/deploy_to_kindle.py`.
-4. Test a manual refresh on the Kindle.
-5. Only after that, test daily scheduling on-device.
-6. Treat unplugged timed wake as a phase-2 experiment, not a base assumption.
+- `Restrict SSH to WiFi, stay in USBMS`: enabled
+
+When you need shell access:
+
+1. Wake the Kindle.
+2. Make sure Wi-Fi is connected.
+3. In `KUAL > USBNetwork`, toggle until the status says `enabled (usbnet, sshd up)`.
+
+The helper scans the whole local `/24`, not just low addresses. If your Kindle has a stable lease, set `KFB_KINDLE_HOST` in [`.env`](C:\Users\aabec\Scripts\kindle-family-board\.env).
 
 ## Notes
 
-- The canvas is already sized for Kindle 4: `600x800`.
-- If Gemini is unavailable, the generator falls back to local jokes.
-- The daily message, words, and fallback joke are pseudo-random by date, so each day feels varied while generation stays reproducible.
+- The board is always rendered at `600x800`.
+- If Gemini fails, the generator falls back to local French jokes.
+- The family message, the younger child words, and the fallback joke are pseudo-random by date: stable for a given day, varied across days.
+- The exact timed wake has been proven on this Kindle, but long multi-day battery endurance is still an operational question. If you want maximum reliability, keep it charged.

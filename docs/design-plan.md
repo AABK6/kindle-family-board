@@ -2,217 +2,177 @@
 
 ## Goal
 
-At 07:00 each morning, the Kindle should show:
+At `07:00` each morning, the Kindle should wake and show a family board that feels designed for e-ink, not like a terminal screenshot.
 
-- weather
-- a warm family greeting
+The current board shows:
+
+- weather for Wassenaar, NL
+- a warm family message
 - two easy reading words for the 6-year-old
-- a very short joke or micro-story for the 9-year-old
+- one short joke for the 9-year-old
 
-The output should look intentional on e-ink, not like a terminal dump.
+The board copy is French-first and the layout is optimized for `600x800`.
 
-## Recommended architecture
+## Implemented architecture
 
-### 1. Host-side generator
+### 1. Board generation off-device
 
-A normal machine or cloud job generates:
+A normal Python environment generates:
 
-- `latest.png`: the rendered 600x800 dashboard
-- `latest.json`: the manifest with the exact content used that day
+- `latest.png`: the final board image
+- `latest.json`: the manifest of the exact content used
 
-The generator does four things:
+The generator:
 
-1. fetches weather from Open-Meteo
-2. selects a rotating message from a local list
-3. selects two rotating easy words from a local word bank
-4. asks Gemini for one short reading block, with local fallback content if Gemini fails
+1. fetches Open-Meteo weather
+2. picks a pseudo-random family aphorism for the day
+3. picks two pseudo-random reading words for the day
+4. asks Gemini for a short French joke, with local fallback jokes if Gemini is unavailable
 
-### 2. Kindle-side fetch and display
+This keeps weather formatting, typography, and LLM usage off the Kindle.
 
-The Kindle should do as little work as possible:
+### 2. GitHub Pages as the production host
 
-1. download `latest.png`
-2. keep the previous image if the network fetch fails
-3. display the image with `eips -f -g`
+The primary hosting path is:
 
-That keeps the Kindle logic short and debuggable.
+- hourly GitHub Actions schedule
+- local-hour gate at `07` in `Europe/Amsterdam`
+- deploy to GitHub Pages
 
-### 3. Scheduling choices
+Stable output URL:
 
-There are three realistic scheduling modes.
+- [latest.png](https://aabk6.github.io/kindle-family-board/latest.png)
 
-#### Mode A: plugged in, Kindle-side daily cron
+This means the Kindle only needs a stable URL. The PC no longer needs to act as the normal morning web server.
 
-This is the safest v1.
+### 3. Kindle-side morning orchestrator
 
-- the Kindle stays on power
-- `crond` runs on the device
-- a daily job fetches and shows the image at 07:00
+The Kindle runs:
 
-Pros:
+- cron entry at `07:00`
+- [run_morning_board.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\run_morning_board.sh)
 
-- simple
-- few moving parts
-- high chance of working reliably
+That script:
 
-Cons:
+1. downloads `latest.png`
+2. displays it with `eips`
+3. arms a board screensaver watchdog
+4. arms a delayed restore job
 
-- it is not truly battery-only
+The delayed restore window is controlled by `KFB_MORNING_HOLD_SECONDS`, currently `10800` seconds.
 
-#### Mode B: unplugged, but periodically unsuspended
+### 4. Board persistence during sleep
 
-This is possible in principle and close to how older online-screensaver hacks worked:
+The core morning UX requirement is:
 
-- the Kindle wakes up on intervals
-- it fetches a fresh image
-- it goes back to sleep
+- if the Kindle auto-sleeps during the morning window, the board must remain visible
 
-Pros:
+That is handled by:
 
-- battery powered
-- still uses a simple image pull model
+- [board_screensaver_watchdog.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\board_screensaver_watchdog.sh)
+- [start_board_watchdog.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\start_board_watchdog.sh)
+- [stop_board_watchdog.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\stop_board_watchdog.sh)
 
-Cons:
+The watchdog listens for `goingToScreenSaver` and redraws the board after the framework paints.
 
-- likely higher battery drain
-- not yet proven on this Kindle 4 setup
-- older public scripts were mainly tested on newer firmware families
+### 5. Post-morning restore to family photos
 
-#### Mode C: unplugged, exact timed wake from deep sleep
+The project now uses an explicit canonical normal screensaver set.
 
-This is the elegant version, but it is still research.
+On the Kindle, that set lives at:
 
-- the Kindle sleeps deeply overnight
-- an RTC alarm or equivalent wakes it at 07:00
-- the display job runs and it sleeps again
+- `/mnt/us/kindle-family-board/normal-screensavers`
 
-Pros:
+The restore path is:
 
-- best battery life
-- cleanest end-state
+1. stop the board watchdog
+2. re-install the canonical photo set into `linkss/screensavers`
+3. copy the chosen photo into the project cache
+4. repaint the visible sleeping cover so the user sees a family photo again
 
-Cons:
+Relevant scripts:
 
-- not yet proven on this Kindle 4
-- the device has RTC devices and `mem` sleep state, but we did not find a ready `rtcwake` tool or a confirmed `wakealarm` path during inspection
-- this likely needs lower-level testing or a known-good Kindle 4 wake script
+- [restore_after_delay.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\restore_after_delay.sh)
+- [restore_screensavers.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\restore_screensavers.sh)
+- [install_normal_screensavers.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\install_normal_screensavers.sh)
+- [one_shot_screensaver_refresh.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\one_shot_screensaver_refresh.sh)
 
-## What we already know from the live device
+This replaced the older, fragile assumption that the “normal” screensaver set could be inferred from whatever happened to be sitting inside `linkss/screensavers`.
 
-Verified on this actual Kindle:
+## Canonical family photo pipeline
 
-- `crond` is installed and running
-- `curl`, `jq`, `fbink`, and `eips` are available
-- Wi-Fi SSH works
-- `/sys/power/state` exposes `standby mem`
-- RTC devices are present
+The current photo screensaver set is hand-curated.
 
-Not yet proven:
+Workflow:
 
-- reliable automatic wake at exactly 07:00 while unplugged
-- persistent daily battery-only operation without manual nudging
+1. put source photos in `Downloads`
+2. manually tune crop boxes in [process_download_screensavers.py](C:\Users\aabec\Scripts\kindle-family-board\scripts\process_download_screensavers.py)
+3. render `600x800` grayscale outputs
+4. upload them to the Kindle as the canonical normal screensaver set
+
+Local outputs:
+
+- [output/new-screensavers](C:\Users\aabec\Scripts\kindle-family-board\output\new-screensavers)
+- [C:\Users\aabec\Downloads\kindle-screensavers-600x800](C:\Users\aabec\Downloads\kindle-screensavers-600x800)
+
+This is intentionally not a generic automatic cropper. The current script contains crop presets for the current four family images.
+
+## Reboot self-heal
+
+Cron needs extra care on this Kindle 4.
+
+The repo therefore installs:
+
+- [boot_reseed.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\boot_reseed.sh)
+- [linkss_emergency.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\linkss_emergency.sh)
+
+That gives the project a practical self-healing boot path:
+
+- after reboot, the `linkss` emergency hook runs
+- the hook re-seeds `/etc/crontab/root`
+- the `07:00` morning cron entry is restored
+
+## Validation status on the live device
+
+Verified on the actual Kindle as of March 18, 2026:
+
+- Wi-Fi SSH works for maintenance
+- the Kindle can wake on a timed test while unplugged
+- the board can display on wake
+- the board remains visible after auto-sleep during the morning hold window
+- the restore path can return the sleeping cover to the family photo set
+
+The restore behavior was verified with the production path compressed to a `60` second hold:
+
+- board launched
+- forced sleep occurred
+- delayed restore fired
+- sleeping cover switched from board to family photo
+
+## Operational caveats
+
+Things that are proven:
+
+- timed wake can happen
+- morning board rendering works
+- board persistence across sleep works
+- restore to photo screensavers works
+
+Things still treated cautiously:
+
+- true long-duration battery endurance over many days is not yet characterized
+- SSH is only available when `USBNetwork` is enabled and the Kindle is awake or Wi-Fi-active
+- the live validation for restore used a compressed hold window rather than literally waiting 3 hours each time
+
+That said, the compressed test uses the same production scripts and code path, so it is a meaningful validation.
 
 ## Practical recommendation
 
-Build in this order:
+Operationally, the system is now in a good state for daily use:
 
-1. host-side generator
-2. manual Kindle fetch and display
-3. plugged-in daily scheduling
-4. unplugged periodic-refresh experiments
-5. deep-sleep timed wake experiments only if needed
+- keep Wi-Fi on
+- keep the device reasonably charged
+- leave `USBNetwork` off unless maintenance is needed
+- treat the canonical family photo set under the project root as the only source of truth for “normal” screensavers
 
-This avoids sinking time into the hardest part before the content and rendering pipeline exists.
-
-## Generation details
-
-### Weather
-
-Use Open-Meteo forecast data for:
-
-- current temperature
-- feels-like temperature
-- condition code
-- daily high and low
-- precipitation probability
-
-### Sweet message rotation
-
-Use a plain text file with many short warm messages.
-
-Selection rule:
-
-- one message per day
-- deterministic by date
-- no database needed
-
-### 6-year-old words
-
-Use a curated sight-word bank, not AI.
-
-Reason:
-
-- predictable
-- easy to review
-- no risk of weird word choices
-
-### 9-year-old reading block
-
-Use Gemini for:
-
-- one joke or micro-story
-- 45 to 85 words
-- cheerful, gentle, and age-appropriate
-- no markdown
-
-Fallback:
-
-- use a local JSON file with short jokes and stories if Gemini is unavailable
-
-## Deployment patterns
-
-### Best long-term pattern
-
-Generate the PNG off-device and host it at a stable URL.
-
-That URL can live on:
-
-- GitHub Pages
-- a tiny VPS
-- a Raspberry Pi or NAS
-- a desktop machine on the home network
-
-### Easiest local pattern
-
-Run the generator on a home machine at 06:55 and either:
-
-- let the Kindle pull it at 07:00
-- or SSH in and display it directly if the Kindle is awake
-
-### Best cloud pattern
-
-Push this repo to GitHub and later add an hourly GitHub Actions workflow that:
-
-- checks Berlin local time
-- only generates near 07:00 local
-- publishes `latest.png` and `latest.json`
-
-That avoids daylight-saving bugs in raw cron expressions.
-
-## Unplugged verdict
-
-Could it stay unplugged?
-
-Yes, probably, but not yet with the same confidence level as the plugged-in mode.
-
-The realistic split is:
-
-- `yes` for short battery-backed prototypes or interval-based wake hacks
-- `maybe` for reliable every-day exact 07:00 wake on this Kindle 4 without extra low-level work
-
-So the recommendation is:
-
-- build the board now
-- run it plugged in first
-- treat unplugged exact wake as a separate engineering spike
-
+If the photo set changes, regenerate it locally and redeploy it. Do not hand-edit `linkss/screensavers` on the device and assume the project can infer the intended baseline.
