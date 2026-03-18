@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
 import sys
 
@@ -23,6 +24,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--port", type=int, default=None, help="Port used for the default board URL.")
     parser.add_argument("--install-cron", action="store_true", help="Install the 07:00 cron entry after upload.")
     parser.add_argument("--run-now", action="store_true", help="Run the fetch/display script immediately after upload.")
+    parser.add_argument("--run-morning-now", action="store_true", help="Run the full morning board flow immediately after upload.")
     parser.add_argument("--install-self-heal", action="store_true", help="Install the linkss boot hook that re-seeds cron on reboot.")
     parser.add_argument(
         "--upload-current-image",
@@ -44,6 +46,8 @@ def main() -> int:
     default_local_url = f"http://{current_local_ip()}:{port}/latest.png"
     default_env_url = config.board_url if config.board_url and "example.com" not in config.board_url else default_local_url
     board_url = args.board_url or default_env_url
+    hold_seconds = os.getenv("KFB_MORNING_HOLD_SECONDS", "10800")
+    screensaver_name = os.getenv("KFB_LINKSS_SCREENSAVER_NAME", "bg_xsmall_ss00.png")
 
     client, auth = connect(host=args.host)
     try:
@@ -58,11 +62,17 @@ def main() -> int:
             upload_file(sftp, REPO_ROOT / "kindle" / "install_cron.sh", f"{remote_root}/install_cron.sh")
             upload_file(sftp, REPO_ROOT / "kindle" / "boot_reseed.sh", f"{remote_root}/boot_reseed.sh")
             upload_file(sftp, REPO_ROOT / "kindle" / "one_shot_wake_test.sh", f"{remote_root}/one_shot_wake_test.sh")
+            upload_file(sftp, REPO_ROOT / "kindle" / "run_morning_board.sh", f"{remote_root}/run_morning_board.sh")
+            upload_file(sftp, REPO_ROOT / "kindle" / "persist_morning_screensaver.sh", f"{remote_root}/persist_morning_screensaver.sh")
+            upload_file(sftp, REPO_ROOT / "kindle" / "restore_screensavers.sh", f"{remote_root}/restore_screensavers.sh")
+            upload_file(sftp, REPO_ROOT / "kindle" / "restore_after_delay.sh", f"{remote_root}/restore_after_delay.sh")
 
             board_env = "\n".join(
                 [
                     f"export BOARD_URL={board_url}",
                     f"export CACHE_DIR={remote_root}/cache",
+                    f"export KFB_MORNING_HOLD_SECONDS={hold_seconds}",
+                    f"export KFB_LINKSS_SCREENSAVER_NAME={screensaver_name}",
                     "export CURL_BIN=/mnt/us/usbnet/bin/curl",
                     "export EIPS_BIN=/usr/sbin/eips",
                     "",
@@ -82,7 +92,9 @@ def main() -> int:
 
         chmod_cmd = (
             f"chmod +x {remote_root}/fetch_and_display.sh {remote_root}/install_cron.sh "
-            f"{remote_root}/boot_reseed.sh {remote_root}/one_shot_wake_test.sh"
+            f"{remote_root}/boot_reseed.sh {remote_root}/one_shot_wake_test.sh "
+            f"{remote_root}/run_morning_board.sh {remote_root}/persist_morning_screensaver.sh "
+            f"{remote_root}/restore_screensavers.sh {remote_root}/restore_after_delay.sh"
         )
         code, _, err = exec_command(client, chmod_cmd)
         if code != 0:
@@ -125,6 +137,14 @@ def main() -> int:
                 sys.stderr.write(err)
             if code != 0:
                 raise RuntimeError("Immediate fetch/display failed.")
+
+        if args.run_morning_now:
+            code, out, err = exec_command(client, f". {remote_root}/board.env && {remote_root}/run_morning_board.sh {remote_root}", timeout=60.0)
+            sys.stdout.write(out)
+            if err:
+                sys.stderr.write(err)
+            if code != 0:
+                raise RuntimeError("Immediate morning board run failed.")
     finally:
         client.close()
     return 0

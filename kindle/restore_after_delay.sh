@@ -3,18 +3,31 @@ set -eu
 
 ROOT_DIR="${1:-/mnt/us/kindle-family-board}"
 DELAY_SECONDS="${2:-}"
-LOG_FILE="$ROOT_DIR/cache/wake-test.log"
-MODE="${KFB_WAKE_TEST_MODE:-fetch}"
+TOKEN="${KFB_RESTORE_TOKEN:-}"
+TOKEN_FILE="$ROOT_DIR/linkss-state/restore.token"
+LOG_FILE="$ROOT_DIR/cache/restore.log"
 
 if [ -z "$DELAY_SECONDS" ]; then
   echo "usage: $0 <root-dir> <delay-seconds>" >&2
   exit 1
 fi
 
-mkdir -p "$ROOT_DIR/cache"
+mkdir -p "$ROOT_DIR/cache" "$ROOT_DIR/linkss-state"
 
 log() {
   printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >> "$LOG_FILE"
+}
+
+token_matches() {
+  if [ -z "$TOKEN" ]; then
+    return 0
+  fi
+
+  if [ ! -f "$TOKEN_FILE" ]; then
+    return 1
+  fi
+
+  [ "$(cat "$TOKEN_FILE" 2>/dev/null)" = "$TOKEN" ]
 }
 
 now_epoch() {
@@ -27,9 +40,14 @@ set_rtc_wakeup() {
 }
 
 TARGET_EPOCH="$(( $(now_epoch) + DELAY_SECONDS ))"
-log "armed delay_seconds=$DELAY_SECONDS target_epoch=$TARGET_EPOCH"
+log "armed restore delay_seconds=$DELAY_SECONDS target_epoch=$TARGET_EPOCH token=${TOKEN:-none}"
 
 while :; do
+  if ! token_matches; then
+    log "restore token replaced, exiting"
+    exit 0
+  fi
+
   NOW="$(now_epoch)"
   REMAINING="$(( TARGET_EPOCH - NOW ))"
   if [ "$REMAINING" -le 0 ]; then
@@ -55,18 +73,10 @@ while :; do
   esac
 done
 
-log "triggering wake/display mode=$MODE"
-lipc-set-prop com.lab126.powerd wakeUp 1 >/dev/null 2>&1 || true
-sleep 1
-
-if [ "$MODE" = "morning" ] && [ -x "$ROOT_DIR/run_morning_board.sh" ]; then
-  KFB_ENV_FILE="$ROOT_DIR/board.env" "$ROOT_DIR/run_morning_board.sh" "$ROOT_DIR" >> "$LOG_FILE" 2>&1 || true
-elif [ "$MODE" != "display-only" ] && [ -x "$ROOT_DIR/fetch_and_display.sh" ]; then
-  KFB_ENV_FILE="$ROOT_DIR/board.env" "$ROOT_DIR/fetch_and_display.sh" >> "$LOG_FILE" 2>&1 || true
+if ! token_matches; then
+  log "restore token replaced before restore, exiting"
+  exit 0
 fi
 
-if [ -f "$ROOT_DIR/cache/latest.png" ]; then
-  /usr/sbin/eips -f -g "$ROOT_DIR/cache/latest.png" >> "$LOG_FILE" 2>&1 || true
-fi
-
-log "wake test finished"
+"$ROOT_DIR/restore_screensavers.sh" "$ROOT_DIR" >> "$LOG_FILE" 2>&1 || true
+log "restore-after-delay finished"

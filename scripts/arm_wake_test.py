@@ -21,6 +21,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--time", required=True, help="Local target time in HH:MM, interpreted in KFB_TIMEZONE.")
     parser.add_argument("--remote-root", default="/mnt/us/kindle-family-board", help="Target root on Kindle.")
     parser.add_argument("--display-only", action="store_true", help="Only redraw the cached image; skip fetch_and_display.")
+    parser.add_argument("--morning", action="store_true", help="Run the full morning board flow after waking.")
     return parser.parse_args()
 
 
@@ -37,9 +38,16 @@ def main() -> int:
     delay_seconds = int((target - now).total_seconds())
     if delay_seconds <= 0:
         raise RuntimeError(f"Target time {args.time} is not in the future. Current time is {now.strftime('%H:%M:%S')}.")
+    if args.display_only and args.morning:
+        raise RuntimeError("Choose either --display-only or --morning, not both.")
     remote_root = args.remote_root.rstrip("/")
     remote_script = f"{remote_root}/one_shot_wake_test.sh"
-    mode_prefix = "KFB_WAKE_TEST_MODE=display-only " if args.display_only else ""
+    if args.display_only:
+        mode_prefix = "KFB_WAKE_TEST_MODE=display-only "
+    elif args.morning:
+        mode_prefix = "KFB_WAKE_TEST_MODE=morning "
+    else:
+        mode_prefix = ""
     background_cmd = (
         f"sh -c '{mode_prefix}{remote_script} {remote_root} {delay_seconds} >/dev/null 2>&1 &'"
     )

@@ -6,6 +6,7 @@ The current implementation is built around a hybrid model:
 
 - a host-side Python job generates a 600x800 PNG and a JSON manifest
 - the Kindle fetches that PNG over Wi-Fi and displays it with `eips`
+- the morning Kindle job also swaps the board into `linkss` so it stays visible while the device sleeps
 - Gemini writes the short reading block for the 9-year-old
 - a local rotating file provides kind morning messages
 - a local word bank provides two simple practice words for the 6-year-old
@@ -25,6 +26,7 @@ It is the fastest path to something that will actually hold up:
 - [`docs/design-plan.md`](C:\Users\aabec\Scripts\kindle-family-board\docs\design-plan.md): the concrete architecture and unplugged analysis
 - [`scripts/generate_board.py`](C:\Users\aabec\Scripts\kindle-family-board\scripts\generate_board.py): host-side board generator
 - [`kindle/fetch_and_display.sh`](C:\Users\aabec\Scripts\kindle-family-board\kindle\fetch_and_display.sh): Kindle-side pull and render script
+- [`kindle/run_morning_board.sh`](C:\Users\aabec\Scripts\kindle-family-board\kindle\run_morning_board.sh): morning fetch, display, screensaver handoff, and timed restore
 - [`kindle/install_cron.sh`](C:\Users\aabec\Scripts\kindle-family-board\kindle\install_cron.sh): installs a daily Kindle cron entry
 - [`data/kind_messages.txt`](C:\Users\aabec\Scripts\kindle-family-board\data\kind_messages.txt): rotating sweet messages
 - [`data/easy_words.txt`](C:\Users\aabec\Scripts\kindle-family-board\data\easy_words.txt): practice words
@@ -72,7 +74,13 @@ C:\Users\aabec\Scripts\kindle-family-board\.venv\Scripts\python scripts/publish_
 Deploy the Kindle-side scripts and install the daily 07:00 cron job:
 
 ```bash
-C:\Users\aabec\Scripts\kindle-family-board\.venv\Scripts\python scripts/deploy_to_kindle.py --install-cron --run-now
+C:\Users\aabec\Scripts\kindle-family-board\.venv\Scripts\python scripts/deploy_to_kindle.py --install-cron
+```
+
+Run the full morning flow immediately for testing:
+
+```bash
+C:\Users\aabec\Scripts\kindle-family-board\.venv\Scripts\python scripts/deploy_to_kindle.py --run-morning-now
 ```
 
 For the first on-device test, use direct image upload instead of HTTP fetch:
@@ -98,11 +106,29 @@ Run `scripts/serve_output.py --generate-first` on a machine that stays on at bre
 
 ### GitHub Pages
 
-The fastest stable hosted path is to publish the generated `site/` directory to the repo's `gh-pages` branch with [scripts/publish_gh_pages.py](C:\Users\aabec\Scripts\kindle-family-board\scripts\publish_gh_pages.py). That gives the Kindle a stable URL like:
+The repo now supports two hosted paths:
+
+- GitHub Actions publishes directly from [`publish-board.yml`](C:\Users\aabec\Scripts\kindle-family-board\.github\workflows\publish-board.yml)
+- [scripts/publish_gh_pages.py](C:\Users\aabec\Scripts\kindle-family-board\scripts\publish_gh_pages.py) is still available as a manual fallback
+
+Both produce the same stable board URL:
 
 - `https://aabk6.github.io/kindle-family-board/latest.png`
 
-If you want daily automation from the Windows host, install [scripts/install_windows_tasks.ps1](C:\Users\aabec\Scripts\kindle-family-board\scripts\install_windows_tasks.ps1). It creates one `06:55` task that rebuilds the board and republishes the `gh-pages` branch.
+If you still want a local fallback, [scripts/install_windows_tasks.ps1](C:\Users\aabec\Scripts\kindle-family-board\scripts\install_windows_tasks.ps1) creates a `06:55` Windows publish task, but that task is no longer required for normal operation.
+
+## Morning persistence
+
+The `07:00` Kindle cron entry now runs the morning orchestrator instead of a bare fetch:
+
+- it downloads and displays the board
+- it swaps the active `linkss` screensaver set so the board remains visible after the Kindle auto-sleeps
+- it arms a wake-safe restore job that brings back your normal screensavers after `KFB_MORNING_HOLD_SECONDS`
+
+Relevant Kindle-side settings:
+
+- `KFB_MORNING_HOLD_SECONDS=10800` keeps the board as the sleep image for 3 hours
+- `KFB_LINKSS_SCREENSAVER_NAME=bg_xsmall_ss00.png` is the temporary file name used inside `linkss/screensavers`
 
 ## Recommended rollout
 

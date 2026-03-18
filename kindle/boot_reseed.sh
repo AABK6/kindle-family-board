@@ -4,7 +4,7 @@ PATH="/usr/sbin:/usr/bin:/sbin:/bin:${PATH:-}"
 
 ROOT_DIR="${1:-/mnt/us/kindle-family-board}"
 CRON_FILE="/etc/crontab/root"
-CRON_LINE="0 7 * * * KFB_ENV_FILE=$ROOT_DIR/board.env $ROOT_DIR/fetch_and_display.sh >> $ROOT_DIR/cache/cron.log 2>&1"
+CRON_LINE="0 7 * * * KFB_ENV_FILE=$ROOT_DIR/board.env $ROOT_DIR/run_morning_board.sh $ROOT_DIR >> $ROOT_DIR/cache/cron.log 2>&1"
 BACKUP_FILE="$ROOT_DIR/root.crontab.backup"
 TMP_FILE="/tmp/kindle-family-board.crontab"
 LOG_FILE="$ROOT_DIR/cache/boot.log"
@@ -24,7 +24,7 @@ if [ ! -f "$BACKUP_FILE" ]; then
   cp "$CRON_FILE" "$BACKUP_FILE"
 fi
 
-grep -v 'kindle-family-board/fetch_and_display.sh' "$CRON_FILE" > "$TMP_FILE" || true
+grep -v 'kindle-family-board/run_morning_board.sh' "$CRON_FILE" | grep -v 'kindle-family-board/fetch_and_display.sh' > "$TMP_FILE" || true
 printf '%s\n' "$CRON_LINE" >> "$TMP_FILE"
 
 mntroot rw >/dev/null 2>&1 || true
