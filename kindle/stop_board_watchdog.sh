@@ -10,14 +10,12 @@ rm -f "$TOKEN_FILE"
 
 if [ -f "$PID_FILE" ]; then
   for pid in $(cat "$PID_FILE" 2>/dev/null); do
-    if ps -fp "$pid" | grep -q "board_screensaver_watchdog.sh"; then
-      kill -TERM "$pid" 2>/dev/null || true
-    fi
+    kill -TERM "$pid" 2>/dev/null || true
   done
   rm -f "$PID_FILE"
 fi
 
-ps | grep "board_screensaver_watchdog.sh" | grep -v grep | while read pid _; do
+ps w | grep "board_screensaver_watchdog.sh" | grep -v grep | while read pid _; do
   kill -TERM "$pid" 2>/dev/null || true
 done
 

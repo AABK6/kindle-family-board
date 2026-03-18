@@ -25,6 +25,10 @@ log() {
   printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >> "$LOG_FILE"
 }
 
+if [ -z "$TOKEN" ] && [ -f "$TOKEN_FILE" ]; then
+  TOKEN="$(cat "$TOKEN_FILE" 2>/dev/null || true)"
+fi
+
 token_matches() {
   if [ -z "$TOKEN" ] || [ ! -f "$TOKEN_FILE" ]; then
     return 1

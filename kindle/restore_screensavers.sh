@@ -9,6 +9,7 @@ STATE_DIR="$ROOT_DIR/linkss-state"
 LOG_FILE="$ROOT_DIR/cache/linkss.log"
 CONVERT_BIN="$LINKSS_DIR/bin/convert"
 TMP_REFRESH_IMAGE="$ROOT_DIR/cache/restore-visible.png"
+BOARD_IMAGE_CACHE="$ROOT_DIR/cache/latest.png"
 
 mkdir -p "$ROOT_DIR/cache"
 
@@ -78,8 +79,9 @@ log "restored normal screensaver mode"
 POWERD_STATUS="$(lipc-get-prop com.lab126.powerd status 2>/dev/null || true)"
 RESTORE_IMAGE="$(prepare_refresh_image || true)"
 if [ -n "$RESTORE_IMAGE" ]; then
+  cp "$RESTORE_IMAGE" "$BOARD_IMAGE_CACHE" >/dev/null 2>&1 || true
   /usr/sbin/eips -f -g "$RESTORE_IMAGE" >> "$LOG_FILE" 2>&1 || true
-  log "refreshed visible restored screensaver status=${POWERD_STATUS:-unknown} image=$RESTORE_IMAGE"
+  log "refreshed visible restored screensaver status=${POWERD_STATUS:-unknown} image=$RESTORE_IMAGE cache=$BOARD_IMAGE_CACHE"
 else
   log "no displayable restored screensaver found for visible refresh status=${POWERD_STATUS:-unknown}"
 fi
