@@ -17,6 +17,9 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     env:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY || secrets.GOOGLE_API_KEY }}
       GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY || secrets.GEMINI_API_KEY }}
@@ -72,4 +75,5 @@ jobs:
 
       - name: Deploy to GitHub Pages
         if: steps.window.outputs.skip != 'true'
+        id: deployment
         uses: actions/deploy-pages@v4
