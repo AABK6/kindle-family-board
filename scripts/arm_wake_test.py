@@ -42,6 +42,7 @@ def main() -> int:
         raise RuntimeError("Choose either --display-only or --morning, not both.")
     remote_root = args.remote_root.rstrip("/")
     remote_script = f"{remote_root}/one_shot_wake_test.sh"
+    remote_pidfile = f"{remote_root}/cache/wake-test.pid"
     if args.display_only:
         mode_prefix = "KFB_WAKE_TEST_MODE=display-only "
     elif args.morning:
@@ -49,7 +50,9 @@ def main() -> int:
     else:
         mode_prefix = ""
     background_cmd = (
-        f"sh -c '{mode_prefix}{remote_script} {remote_root} {delay_seconds} >/dev/null 2>&1 &'"
+        f"rm -f {remote_pidfile}; "
+        f"/sbin/start-stop-daemon -S -b -m -p {remote_pidfile} -x /bin/sh -- "
+        f"-c '{mode_prefix}{remote_script} {remote_root} {delay_seconds} >/dev/null 2>&1'"
     )
 
     client, auth = connect(host=args.host)

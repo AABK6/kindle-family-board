@@ -32,7 +32,9 @@ fi
 if [ "$HOLD_SECONDS" -gt 0 ] && [ -x "$ROOT_DIR/restore_after_delay.sh" ]; then
   TOKEN="$(date +%s)"
   printf '%s\n' "$TOKEN" > "$ROOT_DIR/linkss-state/restore.token"
-  sh -c "KFB_RESTORE_TOKEN=$TOKEN $ROOT_DIR/restore_after_delay.sh $ROOT_DIR $HOLD_SECONDS >/dev/null 2>&1 &"
+  rm -f "$ROOT_DIR/cache/restore.pid"
+  /sbin/start-stop-daemon -S -b -m -p "$ROOT_DIR/cache/restore.pid" -x /bin/sh -- \
+    -c "KFB_RESTORE_TOKEN=$TOKEN $ROOT_DIR/restore_after_delay.sh $ROOT_DIR $HOLD_SECONDS >/dev/null 2>&1"
   log "armed restore_after_delay for $HOLD_SECONDS seconds"
 fi
 
