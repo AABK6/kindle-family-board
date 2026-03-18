@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.env
+output/
+site/
+logs/
+*.log
+serve_output.stdout.log
+serve_output.stderr.log
+*.egg-info/

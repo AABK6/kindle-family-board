@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kindle-family-board"
+version = "0.1.0"
+description = "Generate a daily family dashboard for a jailbroken Kindle."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "google-genai>=1.0.0",
+  "paramiko>=3.4.0",
+  "Pillow>=10.0.0",
+  "python-dotenv>=1.0.1",
+  "requests>=2.31.0",
+  "tzdata>=2024.1",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
