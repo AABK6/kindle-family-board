@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 import json
+import random
 from datetime import date
 from pathlib import Path
 
@@ -19,19 +21,22 @@ def load_lines(path: Path) -> list[str]:
     return lines
 
 
+def _daily_rng(namespace: str, target_date: date) -> random.Random:
+    seed = hashlib.sha256(f"{namespace}:{target_date.isoformat()}".encode("utf-8")).hexdigest()
+    return random.Random(seed)
+
+
 def pick_rotating_item(items: list[str], target_date: date) -> str:
-    index = target_date.toordinal() % len(items)
-    return items[index]
+    rng = _daily_rng("family-message", target_date)
+    return rng.choice(items)
 
 
 def pick_practice_words(words: list[str], target_date: date, count: int = 2) -> tuple[str, str]:
     if len(words) < count:
         raise ValueError("Need at least two words in the word bank.")
 
-    base_index = (target_date.toordinal() * 7) % len(words)
-    selected = [words[(base_index + step * 17) % len(words)] for step in range(count)]
-    if selected[0] == selected[1]:
-        selected[1] = words[(base_index + 1) % len(words)]
+    rng = _daily_rng("practice-words", target_date)
+    selected = rng.sample(words, count)
     return selected[0], selected[1]
 
 
@@ -53,11 +58,11 @@ def load_fallback_readings(path: Path) -> list[ReadingSnippet]:
 
 
 def pick_fallback_reading(readings: list[ReadingSnippet], target_date: date) -> ReadingSnippet:
-    reading = readings[target_date.toordinal() % len(readings)]
+    rng = _daily_rng("fallback-reading", target_date)
+    reading = rng.choice(readings)
     return ReadingSnippet(
         kind=reading.kind,
         title=reading.title,
         body=reading.body,
         source=reading.source,
     )
-

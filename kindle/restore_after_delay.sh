@@ -22,17 +22,22 @@ power_status() {
   lipc-get-prop com.lab126.powerd status 2>/dev/null || true
 }
 
-status_is_screensaver() {
-  status="$(power_status)"
-  echo "$status" | grep -qi "screen saver"
-}
+run_photo_screensaver_cycle() {
+  PHOTO_IMAGE="$ROOT_DIR/cache/latest.png"
+  if [ ! -f "$PHOTO_IMAGE" ]; then
+    log "photo screensaver cycle skipped, image missing: $PHOTO_IMAGE"
+    return 0
+  fi
 
-run_clean_screensaver_cycle() {
-  log "starting clean screensaver cycle"
+  if [ -x "$ROOT_DIR/one_shot_screensaver_refresh.sh" ]; then
+    /sbin/start-stop-daemon -S -b -x "$ROOT_DIR/one_shot_screensaver_refresh.sh" -- "$ROOT_DIR" "$PHOTO_IMAGE"
+    log "armed one-shot screensaver refresh image=$PHOTO_IMAGE"
+  fi
+
   lipc-set-prop com.lab126.powerd wakeUp 1 >/dev/null 2>&1 || true
   sleep 3
   powerd_test -p >/dev/null 2>&1 || true
-  log "finished clean screensaver cycle"
+  log "completed photo screensaver cycle"
 }
 
 token_matches() {
@@ -99,6 +104,6 @@ STATUS_BEFORE="$(power_status)"
 "$ROOT_DIR/restore_screensavers.sh" "$ROOT_DIR" >> "$LOG_FILE" 2>&1 || true
 log "restore invoked status_before=${STATUS_BEFORE:-unknown}"
 if echo "$STATUS_BEFORE" | grep -qi "screen saver"; then
-  run_clean_screensaver_cycle
+  run_photo_screensaver_cycle
 fi
 log "restore-after-delay finished"

@@ -149,4 +149,4 @@ Relevant Kindle-side settings:
 
 - The canvas is already sized for Kindle 4: `600x800`.
 - If Gemini is unavailable, the generator falls back to local jokes.
-- The daily message and words are deterministic by date, so the content rotates cleanly without needing a database.
+- The daily message, words, and fallback joke are pseudo-random by date, so each day feels varied while generation stays reproducible.

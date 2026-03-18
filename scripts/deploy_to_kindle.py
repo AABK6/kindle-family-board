@@ -69,6 +69,7 @@ def main() -> int:
             upload_file(sftp, REPO_ROOT / "kindle" / "board_screensaver_watchdog.sh", f"{remote_root}/board_screensaver_watchdog.sh")
             upload_file(sftp, REPO_ROOT / "kindle" / "start_board_watchdog.sh", f"{remote_root}/start_board_watchdog.sh")
             upload_file(sftp, REPO_ROOT / "kindle" / "stop_board_watchdog.sh", f"{remote_root}/stop_board_watchdog.sh")
+            upload_file(sftp, REPO_ROOT / "kindle" / "one_shot_screensaver_refresh.sh", f"{remote_root}/one_shot_screensaver_refresh.sh")
 
             board_env = "\n".join(
                 [
@@ -99,7 +100,7 @@ def main() -> int:
             f"{remote_root}/run_morning_board.sh {remote_root}/persist_morning_screensaver.sh "
             f"{remote_root}/restore_screensavers.sh {remote_root}/restore_after_delay.sh "
             f"{remote_root}/board_screensaver_watchdog.sh {remote_root}/start_board_watchdog.sh "
-            f"{remote_root}/stop_board_watchdog.sh"
+            f"{remote_root}/stop_board_watchdog.sh {remote_root}/one_shot_screensaver_refresh.sh"
         )
         code, _, err = exec_command(client, chmod_cmd)
         if code != 0:
