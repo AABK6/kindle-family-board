@@ -30,12 +30,12 @@ It is the fastest path to something that will actually hold up:
 - [`kindle/install_cron.sh`](C:\Users\aabec\Scripts\kindle-family-board\kindle\install_cron.sh): installs a daily Kindle cron entry
 - [`data/kind_messages.txt`](C:\Users\aabec\Scripts\kindle-family-board\data\kind_messages.txt): rotating sweet messages
 - [`data/easy_words.txt`](C:\Users\aabec\Scripts\kindle-family-board\data\easy_words.txt): practice words
-- [`data/fallback_readings.json`](C:\Users\aabec\Scripts\kindle-family-board\data\fallback_readings.json): local fallback stories and jokes
+- [`data/fallback_readings.json`](C:\Users\aabec\Scripts\kindle-family-board\data\fallback_readings.json): local fallback jokes
 
 ## Quick start
 
 1. Create a venv and install the package.
-2. Review [`.env`](C:\Users\aabec\Scripts\kindle-family-board\.env) and adjust location values if Berlin is not correct.
+2. Review [`.env`](C:\Users\aabec\Scripts\kindle-family-board\.env) and adjust location values if Wassenaar is not correct.
 3. Keep `GEMINI_API_KEY` in your shell environment, or add it to `.env`.
 4. Run:
 
@@ -142,5 +142,5 @@ Relevant Kindle-side settings:
 ## Notes
 
 - The canvas is already sized for Kindle 4: `600x800`.
-- If Gemini is unavailable, the generator falls back to local jokes and micro-stories.
+- If Gemini is unavailable, the generator falls back to local jokes.
 - The daily message and words are deterministic by date, so the content rotates cleanly without needing a database.

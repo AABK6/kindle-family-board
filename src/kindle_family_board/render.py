@@ -9,6 +9,31 @@ from PIL import Image, ImageDraw, ImageFont
 from .config import BoardConfig
 from .models import BoardContent
 
+WEEKDAY_NAMES = {
+    0: "lundi",
+    1: "mardi",
+    2: "mercredi",
+    3: "jeudi",
+    4: "vendredi",
+    5: "samedi",
+    6: "dimanche",
+}
+
+MONTH_NAMES = {
+    1: "janvier",
+    2: "fevrier",
+    3: "mars",
+    4: "avril",
+    5: "mai",
+    6: "juin",
+    7: "juillet",
+    8: "aout",
+    9: "septembre",
+    10: "octobre",
+    11: "novembre",
+    12: "decembre",
+}
+
 
 def _existing(paths: Iterable[Path]) -> Path | None:
     for path in paths:
@@ -332,6 +357,13 @@ def draw_word_pill(
     draw.text((x, y), text, font=font, fill=0)
 
 
+def format_french_date(content: BoardContent) -> str:
+    render_date = content.render_date
+    weekday = WEEKDAY_NAMES[render_date.weekday()]
+    month = MONTH_NAMES[render_date.month]
+    return f"{weekday} {render_date.day} {month}"
+
+
 def render_board(content: BoardContent, config: BoardConfig, output_path: Path) -> Path:
     width = config.image_width
     height = config.image_height
@@ -354,7 +386,7 @@ def render_board(content: BoardContent, config: BoardConfig, output_path: Path) 
 
     draw.text((margin, y), content.greeting, font=title_font, fill=0)
     y += 50
-    draw.text((margin, y), content.render_date.strftime("%A %d %B"), font=date_font, fill=0)
+    draw.text((margin, y), format_french_date(content), font=date_font, fill=0)
     y += 14
     draw.line((margin, y + 14, width - margin, y + 14), fill=0, width=2)
     y += 32
@@ -370,7 +402,7 @@ def render_board(content: BoardContent, config: BoardConfig, output_path: Path) 
     draw_weather_period(
         draw,
         box=left_period_box,
-        label="Morning",
+        label=content.weather.morning.label,
         weather_code=content.weather.morning.weather_code,
         temperature_c=content.weather.morning.temperature_c,
         precipitation_probability=content.weather.morning.precipitation_probability,
@@ -381,7 +413,7 @@ def render_board(content: BoardContent, config: BoardConfig, output_path: Path) 
     draw_weather_period(
         draw,
         box=right_period_box,
-        label="Afternoon",
+        label=content.weather.afternoon.label,
         weather_code=content.weather.afternoon.weather_code,
         temperature_c=content.weather.afternoon.temperature_c,
         precipitation_probability=content.weather.afternoon.precipitation_probability,

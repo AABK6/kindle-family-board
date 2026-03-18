@@ -26,17 +26,17 @@ jobs:
       KFB_LOCATION_NAME: ${{ vars.KFB_LOCATION_NAME }}
       KFB_LATITUDE: ${{ vars.KFB_LATITUDE }}
       KFB_LONGITUDE: ${{ vars.KFB_LONGITUDE }}
-      KFB_TIMEZONE: ${{ vars.KFB_TIMEZONE || 'Europe/Berlin' }}
+      KFB_TIMEZONE: ${{ vars.KFB_TIMEZONE || 'Europe/Amsterdam' }}
       KFB_ICON_STYLE: ${{ vars.KFB_ICON_STYLE || 'burst' }}
       KFB_BOARD_URL: ${{ vars.KFB_BOARD_URL }}
     steps:
-      - name: Check Berlin window
+      - name: Check local window
         id: window
         shell: bash
         run: |
           if [[ "${GITHUB_EVENT_NAME}" == "schedule" ]]; then
-            berlin_hour=$(TZ="${KFB_TIMEZONE:-Europe/Berlin}" date +%H)
-            if [[ "$berlin_hour" != "07" ]]; then
+            local_hour=$(TZ="${KFB_TIMEZONE:-Europe/Amsterdam}" date +%H)
+            if [[ "$local_hour" != "07" ]]; then
               echo "skip=true" >> "$GITHUB_OUTPUT"
               exit 0
             fi

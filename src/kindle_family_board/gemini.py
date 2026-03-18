@@ -28,23 +28,24 @@ def build_prompt(
 ) -> str:
     return "\n".join(
         [
-            "Write one very short reading item for a 9-year-old child.",
-            "Return only valid JSON following the provided schema.",
-            "The tone must be warm, light, family-safe, and easy to read aloud.",
-            "Choose either a tiny joke or a tiny micro-story.",
-            "Use 30 to 55 words for the body.",
-            "Keep the title very short: 1 to 4 words.",
-            "Use short sentences and simple vocabulary.",
-            "Keep it compact enough to fit inside a 600x800 Kindle e-ink card.",
-            "Do not use markdown, bullets, lists, or emojis.",
+            "Ecris en francais un tres court texte a lire pour un enfant de 9 ans.",
+            "Renvoie uniquement du JSON valide conforme au schema fourni.",
+            "Le ton doit etre chaleureux, leger, familial et facile a lire a voix haute.",
+            "Prefere nettement une blague courte et drole.",
+            "N'ecris une micro-histoire que si tu ne trouves vraiment pas de bonne blague.",
+            "Utilise 30 a 55 mots pour le corps du texte.",
+            "Le titre doit rester tres court: 1 a 4 mots.",
+            "Utilise des phrases courtes et un vocabulaire simple.",
+            "Le texte doit tenir dans une carte Kindle e-ink de 600x800.",
+            "N'utilise pas de markdown, de puces, de listes ou d'emojis.",
             f"Date: {target_date.isoformat()}",
-            f"Location: {location_name}",
-            f"Family message of the day: {family_message}",
-            f"Words of the day for the younger child: {practice_words[0]}, {practice_words[1]}",
+            f"Lieu: {location_name}",
+            f"Message du jour pour la famille: {family_message}",
+            f"Mots du jour pour le plus jeune: {practice_words[0]}, {practice_words[1]}",
             (
-                f"Weather summary: now {weather.current_condition} {weather.current_temperature_c:.0f}C, "
-                f"morning {weather.morning.condition} {weather.morning.temperature_c:.0f}C, "
-                f"afternoon {weather.afternoon.condition} {weather.afternoon.temperature_c:.0f}C"
+                f"Meteo: maintenant {weather.current_condition} {weather.current_temperature_c:.0f}C, "
+                f"matin {weather.morning.condition} {weather.morning.temperature_c:.0f}C, "
+                f"apres-midi {weather.afternoon.condition} {weather.afternoon.temperature_c:.0f}C"
             ),
         ]
     )

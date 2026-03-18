@@ -15,7 +15,7 @@ from .weather import fetch_weather
 
 
 def _greeting_for(target_date: date) -> str:
-    return "Good morning, family."
+    return "Bonjour la famille."
 
 
 def _json_default(value: object) -> str:

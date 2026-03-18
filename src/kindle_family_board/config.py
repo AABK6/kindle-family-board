@@ -43,10 +43,10 @@ class BoardConfig:
     @classmethod
     def from_env(cls) -> "BoardConfig":
         return cls(
-            location_name=os.getenv("KFB_LOCATION_NAME", "Berlin Home"),
-            latitude=_env_float("KFB_LATITUDE", 52.5200),
-            longitude=_env_float("KFB_LONGITUDE", 13.4050),
-            timezone=os.getenv("KFB_TIMEZONE", "Europe/Berlin"),
+            location_name=os.getenv("KFB_LOCATION_NAME", "Wassenaar"),
+            latitude=_env_float("KFB_LATITUDE", 52.1450),
+            longitude=_env_float("KFB_LONGITUDE", 4.4028),
+            timezone=os.getenv("KFB_TIMEZONE", "Europe/Amsterdam"),
             gemini_api_key=os.getenv("GEMINI_API_KEY"),
             gemini_model=os.getenv("KFB_GEMINI_MODEL", "gemini-2.5-flash"),
             output_dir=_env_path("KFB_OUTPUT_DIR", ROOT_DIR / "output"),
