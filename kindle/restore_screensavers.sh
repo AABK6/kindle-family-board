@@ -7,7 +7,6 @@ SCREENSAVER_DIR="$LINKSS_DIR/screensavers"
 ACTIVE_DIR="${KFB_LINKSS_ACTIVE_DIR:-/opt/amazon/screen_saver/600x800}"
 STATE_DIR="$ROOT_DIR/linkss-state"
 LOG_FILE="$ROOT_DIR/cache/linkss.log"
-CONFLICT_MARKERS="cover backdrop"
 CONVERT_BIN="$LINKSS_DIR/bin/convert"
 TMP_REFRESH_IMAGE="$ROOT_DIR/cache/restore-visible.png"
 
@@ -17,14 +16,25 @@ log() {
   printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >> "$LOG_FILE"
 }
 
+first_existing() {
+  for candidate in "$@"; do
+    if [ -f "$candidate" ]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
 prepare_refresh_image() {
-  candidate="$(find "$TARGET_DIR" -maxdepth 1 -type f -iname '*.png' | sort | sed -n '1p')"
+  candidate="$(first_existing "$TARGET_DIR"/*.png "$TARGET_DIR"/*.PNG || true)"
   if [ -n "$candidate" ]; then
     printf '%s\n' "$candidate"
     return 0
   fi
 
-  candidate="$(find "$TARGET_DIR" -maxdepth 1 -type f \( -iname '*.jpg' -o -iname '*.jpeg' \) | sort | sed -n '1p')"
+  candidate="$(first_existing "$TARGET_DIR"/*.jpg "$TARGET_DIR"/*.JPG "$TARGET_DIR"/*.jpeg "$TARGET_DIR"/*.JPEG || true)"
   if [ -n "$candidate" ] && [ -x "$CONVERT_BIN" ]; then
     rm -f "$TMP_REFRESH_IMAGE"
     if "$CONVERT_BIN" "$candidate" "$TMP_REFRESH_IMAGE" >/dev/null 2>&1; then
@@ -48,31 +58,23 @@ if [ -d "$ACTIVE_DIR" ]; then
   TARGET_DIR="$ACTIVE_DIR"
 fi
 
-rm -rf "$SCREENSAVER_DIR"
 mkdir -p "$SCREENSAVER_DIR"
 if [ -d "$STATE_DIR/original_screensavers" ]; then
   for original in "$STATE_DIR"/original_screensavers/*; do
     [ -f "$original" ] || continue
     base="$(basename "$original")"
-    cp "$original" "$SCREENSAVER_DIR/$base"
-    chmod 644 "$SCREENSAVER_DIR/$base" 2>/dev/null || true
-    if [ "$TARGET_DIR" != "$SCREENSAVER_DIR" ]; then
-      cp "$original" "$TARGET_DIR/$base"
+    if [ ! -f "$SCREENSAVER_DIR/$base" ]; then
+      cp "$original" "$SCREENSAVER_DIR/$base" 2>/dev/null || true
+      chmod 644 "$SCREENSAVER_DIR/$base" 2>/dev/null || true
+    fi
+    if [ "$TARGET_DIR" != "$SCREENSAVER_DIR" ] && [ ! -f "$TARGET_DIR/$base" ]; then
+      cp "$original" "$TARGET_DIR/$base" 2>/dev/null || true
       chmod 644 "$TARGET_DIR/$base" 2>/dev/null || true
     fi
   done
 fi
 
-for marker in $CONFLICT_MARKERS; do
-  rm -f "$LINKSS_DIR/$marker"
-  if [ -e "$STATE_DIR/$marker" ]; then
-    mv "$STATE_DIR/$marker" "$LINKSS_DIR/$marker"
-  fi
-done
-
-rm -rf "$STATE_DIR"
-sync
-log "restored original linkss screensaver state"
+log "restored normal screensaver mode"
 POWERD_STATUS="$(lipc-get-prop com.lab126.powerd status 2>/dev/null || true)"
 RESTORE_IMAGE="$(prepare_refresh_image || true)"
 if [ -n "$RESTORE_IMAGE" ]; then
@@ -81,3 +83,6 @@ if [ -n "$RESTORE_IMAGE" ]; then
 else
   log "no displayable restored screensaver found for visible refresh status=${POWERD_STATUS:-unknown}"
 fi
+
+rm -rf "$STATE_DIR"
+sync

@@ -4,6 +4,9 @@ set -eu
 ROOT_DIR="${1:-/mnt/us/kindle-family-board}"
 PID_FILE="$ROOT_DIR/cache/board-ss-watchdog.pid"
 LOG_FILE="$ROOT_DIR/cache/board-ss-watchdog.log"
+TOKEN_FILE="$ROOT_DIR/cache/board-ss-watchdog.token"
+
+rm -f "$TOKEN_FILE"
 
 if [ -f "$PID_FILE" ]; then
   for pid in $(cat "$PID_FILE" 2>/dev/null); do
