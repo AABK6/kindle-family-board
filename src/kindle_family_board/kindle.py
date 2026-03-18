@@ -15,6 +15,7 @@ DEFAULT_USER = "root"
 CONNECT_TIMEOUT = 3.0
 DEFAULT_SERIAL = "90231703323302CF"
 DEFAULT_KEY_PATH = Path(r"C:\Users\aabec\OneDrive\Documents\Playground\kindle_fix\id_rsa")
+DEFAULT_HOST_CACHE = Path(r"C:\Users\aabec\OneDrive\Documents\Playground\kindle_fix\last_host.txt")
 
 
 @dataclass(slots=True)
@@ -46,9 +47,19 @@ def configured_user() -> str:
     return os.getenv("KFB_KINDLE_USER", DEFAULT_USER)
 
 
+def configured_host() -> str | None:
+    value = os.getenv("KFB_KINDLE_HOST")
+    return value.strip() if value and value.strip() else None
+
+
 def configured_key_path() -> Path:
     raw = os.getenv("KFB_SSH_KEY_PATH")
     return Path(raw).expanduser() if raw else DEFAULT_KEY_PATH
+
+
+def configured_host_cache_path() -> Path:
+    raw = os.getenv("KFB_KINDLE_HOST_CACHE")
+    return Path(raw).expanduser() if raw else DEFAULT_HOST_CACHE
 
 
 def current_network() -> tuple[str, ipaddress.IPv4Network]:
@@ -98,9 +109,25 @@ def find_candidates(network: ipaddress.IPv4Network, skip_ip: str) -> list[str]:
     return discovered
 
 
-def discover_host() -> str:
+def candidate_hosts() -> list[str]:
     local_ip, network = current_network()
-    candidates = find_candidates(network, local_ip)
+    candidates: list[str] = []
+    seen: set[str] = set()
+
+    for preferred in (configured_host(), read_cached_host()):
+        if preferred and preferred not in seen:
+            seen.add(preferred)
+            candidates.append(preferred)
+
+    for discovered in find_candidates(network, local_ip):
+        if discovered not in seen:
+            seen.add(discovered)
+            candidates.append(discovered)
+    return candidates
+
+
+def discover_host() -> str:
+    candidates = candidate_hosts()
     fallback: list[str] = []
     for ip in candidates:
         banner = read_banner(ip)
@@ -109,54 +136,92 @@ def discover_host() -> str:
         fallback.append(ip)
     if len(fallback) == 1:
         return fallback[0]
+    local_ip, network = current_network()
     raise RuntimeError(f"No Kindle SSH host found on {network}")
 
 
+def cache_host(host: str) -> None:
+    cache_path = configured_host_cache_path()
+    try:
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        cache_path.write_text(host.strip(), encoding="ascii")
+    except OSError:
+        pass
+
+
+def read_cached_host() -> str | None:
+    cache_path = configured_host_cache_path()
+    try:
+        value = cache_path.read_text(encoding="ascii").strip()
+    except OSError:
+        return None
+    return value or None
+
+
 def connect(host: str | None = None, *, serial: str | None = None, user: str | None = None) -> tuple[paramiko.SSHClient, KindleAuth]:
-    chosen_host = host or discover_host()
     chosen_user = user or configured_user()
     chosen_serial = serial or configured_serial()
     key_path = configured_key_path()
+    explicit_host = host is not None
+    candidate_list = [host] if explicit_host else candidate_hosts()
+    if not candidate_list:
+        chosen_host = discover_host()
+        candidate_list = [chosen_host]
+
     last_error: Exception | None = None
+    last_host: str | None = None
 
-    if key_path.exists():
-        client = paramiko.SSHClient()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        try:
-            key = paramiko.RSAKey.from_private_key_file(str(key_path))
-            client.connect(
-                hostname=chosen_host,
-                username=chosen_user,
-                pkey=key,
-                timeout=CONNECT_TIMEOUT,
-                look_for_keys=False,
-                allow_agent=False,
-                auth_timeout=CONNECT_TIMEOUT,
-            )
-            return client, KindleAuth(host=chosen_host, user=chosen_user, secret_label=f"key:{key_path}")
-        except Exception as exc:
-            last_error = exc
-            client.close()
+    for chosen_host in candidate_list:
+        if not chosen_host:
+            continue
+        if not explicit_host and not port_open(chosen_host, timeout=0.8):
+            continue
+        last_host = chosen_host
 
-    for password in derive_passwords(chosen_serial):
-        client = paramiko.SSHClient()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        try:
-            client.connect(
-                hostname=chosen_host,
-                username=chosen_user,
-                password=password,
-                timeout=CONNECT_TIMEOUT,
-                look_for_keys=False,
-                allow_agent=False,
-                auth_timeout=CONNECT_TIMEOUT,
-            )
-            return client, KindleAuth(host=chosen_host, user=chosen_user, secret_label="derived-password")
-        except Exception as exc:
-            last_error = exc
-            client.close()
+        if key_path.exists():
+            client = paramiko.SSHClient()
+            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            try:
+                key = paramiko.RSAKey.from_private_key_file(str(key_path))
+                client.connect(
+                    hostname=chosen_host,
+                    username=chosen_user,
+                    pkey=key,
+                    timeout=CONNECT_TIMEOUT,
+                    look_for_keys=False,
+                    allow_agent=False,
+                    auth_timeout=CONNECT_TIMEOUT,
+                )
+                cache_host(chosen_host)
+                return client, KindleAuth(host=chosen_host, user=chosen_user, secret_label=f"key:{key_path}")
+            except Exception as exc:
+                last_error = exc
+                client.close()
 
-    raise RuntimeError(f"SSH auth failed for {chosen_host}: {last_error}")
+        for password in derive_passwords(chosen_serial):
+            client = paramiko.SSHClient()
+            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            try:
+                client.connect(
+                    hostname=chosen_host,
+                    username=chosen_user,
+                    password=password,
+                    timeout=CONNECT_TIMEOUT,
+                    look_for_keys=False,
+                    allow_agent=False,
+                    auth_timeout=CONNECT_TIMEOUT,
+                )
+                cache_host(chosen_host)
+                return client, KindleAuth(host=chosen_host, user=chosen_user, secret_label="derived-password")
+            except Exception as exc:
+                last_error = exc
+                client.close()
+
+    if last_host is None:
+        local_ip, network = current_network()
+        raise RuntimeError(f"No Kindle SSH host found on {network}")
+
+    raise RuntimeError(f"SSH auth failed for {last_host}: {last_error}")
 
 
 def exec_command(client: paramiko.SSHClient, command: str, timeout: float = 30.0) -> tuple[int, str, str]:
@@ -165,4 +230,3 @@ def exec_command(client: paramiko.SSHClient, command: str, timeout: float = 30.0
     err = stderr.read().decode("utf-8", "ignore")
     code = stdout.channel.recv_exit_status()
     return code, out, err
-

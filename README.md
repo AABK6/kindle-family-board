@@ -102,7 +102,7 @@ The deploy command assumes:
 - `USBNetwork` is toggled on
 - `Restrict SSH to WiFi, stay in USBMS` is enabled
 
-If auto-discovery misses it, add `--host <kindle-ip>`.
+The SSH helper scans the whole local `/24`, not just low addresses, and now caches the last working Kindle IP. If your Kindle usually lands on a stable address such as `192.168.2.30`, set `KFB_KINDLE_HOST` in [`.env`](C:\Users\aabec\Scripts\kindle-family-board\.env) or pass `--host 192.168.2.30` explicitly.
 
 ## Hosting options
 

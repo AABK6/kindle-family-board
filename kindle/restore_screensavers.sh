@@ -73,13 +73,11 @@ done
 rm -rf "$STATE_DIR"
 sync
 log "restored original linkss screensaver state"
-
-if lipc-get-prop com.lab126.powerd status 2>/dev/null | grep -qi "Screen Saver"; then
-  RESTORE_IMAGE="$(prepare_refresh_image || true)"
-  if [ -n "$RESTORE_IMAGE" ]; then
-    /usr/sbin/eips -f -g "$RESTORE_IMAGE" >> "$LOG_FILE" 2>&1 || true
-    log "refreshed visible restored screensaver"
-  else
-    log "no displayable restored screensaver found for visible refresh"
-  fi
+POWERD_STATUS="$(lipc-get-prop com.lab126.powerd status 2>/dev/null || true)"
+RESTORE_IMAGE="$(prepare_refresh_image || true)"
+if [ -n "$RESTORE_IMAGE" ]; then
+  /usr/sbin/eips -f -g "$RESTORE_IMAGE" >> "$LOG_FILE" 2>&1 || true
+  log "refreshed visible restored screensaver status=${POWERD_STATUS:-unknown} image=$RESTORE_IMAGE"
+else
+  log "no displayable restored screensaver found for visible refresh status=${POWERD_STATUS:-unknown}"
 fi
