@@ -83,10 +83,10 @@ Run the full morning flow immediately for testing:
 C:\Users\aabec\Scripts\kindle-family-board\.venv\Scripts\python scripts/deploy_to_kindle.py --run-morning-now
 ```
 
-Run a short restore-cycle test with a 2-minute hold and a forced sleep:
+Run a short restore-cycle test with a 1-minute hold and a forced sleep:
 
 ```bash
-C:\Users\aabec\Scripts\kindle-family-board\.venv\Scripts\python scripts/test_restore_cycle.py --hold-seconds 120 --force-sleep-after 20
+C:\Users\aabec\Scripts\kindle-family-board\.venv\Scripts\python scripts/test_restore_cycle.py --hold-seconds 60 --force-sleep-after 20
 ```
 
 For the first on-device test, use direct image upload instead of HTTP fetch:

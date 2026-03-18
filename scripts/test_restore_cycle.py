@@ -20,7 +20,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run a short Kindle morning-board cycle to test restore timing.")
     parser.add_argument("--host", help="Kindle IP address.")
     parser.add_argument("--remote-root", default="/mnt/us/kindle-family-board", help="Target directory on the Kindle.")
-    parser.add_argument("--hold-seconds", type=int, default=120, help="Temporary hold duration for the board screensaver.")
+    parser.add_argument("--hold-seconds", type=int, default=60, help="Temporary hold duration for the board screensaver.")
     parser.add_argument(
         "--force-sleep-after",
         type=int,

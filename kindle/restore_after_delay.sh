@@ -18,6 +18,23 @@ log() {
   printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >> "$LOG_FILE"
 }
 
+power_status() {
+  lipc-get-prop com.lab126.powerd status 2>/dev/null || true
+}
+
+status_is_screensaver() {
+  status="$(power_status)"
+  echo "$status" | grep -qi "screen saver"
+}
+
+run_clean_screensaver_cycle() {
+  log "starting clean screensaver cycle"
+  lipc-set-prop com.lab126.powerd wakeUp 1 >/dev/null 2>&1 || true
+  sleep 3
+  powerd_test -p >/dev/null 2>&1 || true
+  log "finished clean screensaver cycle"
+}
+
 token_matches() {
   if [ -z "$TOKEN" ]; then
     return 0
@@ -78,5 +95,10 @@ if ! token_matches; then
   exit 0
 fi
 
+STATUS_BEFORE="$(power_status)"
 "$ROOT_DIR/restore_screensavers.sh" "$ROOT_DIR" >> "$LOG_FILE" 2>&1 || true
+log "restore invoked status_before=${STATUS_BEFORE:-unknown}"
+if echo "$STATUS_BEFORE" | grep -qi "screen saver"; then
+  run_clean_screensaver_cycle
+fi
 log "restore-after-delay finished"

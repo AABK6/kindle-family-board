@@ -4,11 +4,16 @@ set -eu
 ROOT_DIR="${1:-/mnt/us/kindle-family-board}"
 ENV_FILE="${KFB_ENV_FILE:-$ROOT_DIR/board.env}"
 LOG_FILE="$ROOT_DIR/cache/morning.log"
+HOLD_SECONDS_OVERRIDE="${KFB_MORNING_HOLD_SECONDS:-}"
 
 if [ -f "$ENV_FILE" ]; then
   set -a
   . "$ENV_FILE"
   set +a
+fi
+
+if [ -n "$HOLD_SECONDS_OVERRIDE" ]; then
+  KFB_MORNING_HOLD_SECONDS="$HOLD_SECONDS_OVERRIDE"
 fi
 
 HOLD_SECONDS="${KFB_MORNING_HOLD_SECONDS:-10800}"
