@@ -9,7 +9,7 @@ The current implementation is built around a hybrid model:
 - Gemini writes the short reading block for the 9-year-old
 - a local rotating file provides kind morning messages
 - a local word bank provides two simple practice words for the 6-year-old
-- repo-local scripts now handle generation, serving, and Kindle deployment
+- repo-local scripts now handle generation, GitHub Pages publishing, and Kindle deployment
 
 ## Why this shape
 
@@ -63,6 +63,12 @@ Build a static `site/` folder for GitHub Pages:
 C:\Users\aabec\Scripts\kindle-family-board\.venv\Scripts\python scripts/build_site.py
 ```
 
+Build and publish the board to the `gh-pages` branch:
+
+```bash
+C:\Users\aabec\Scripts\kindle-family-board\.venv\Scripts\python scripts/publish_gh_pages.py
+```
+
 Deploy the Kindle-side scripts and install the daily 07:00 cron job:
 
 ```bash
@@ -92,13 +98,11 @@ Run `scripts/serve_output.py --generate-first` on a machine that stays on at bre
 
 ### GitHub Pages
 
-The repo includes [`.github/workflows/publish-board.yml`](C:\Users\aabec\Scripts\kindle-family-board\.github\workflows\publish-board.yml). Once you push this repo to GitHub and enable Pages from Actions:
+The fastest stable hosted path is to publish the generated `site/` directory to the repo's `gh-pages` branch with [scripts/publish_gh_pages.py](C:\Users\aabec\Scripts\kindle-family-board\scripts\publish_gh_pages.py). That gives the Kindle a stable URL like:
 
-- add `GEMINI_API_KEY` as a repository secret
-- add `KFB_LOCATION_NAME`, `KFB_LATITUDE`, `KFB_LONGITUDE`, `KFB_TIMEZONE`, and optionally `KFB_BOARD_URL` as repository variables
-- the workflow runs hourly and only publishes during the 07:00 Berlin hour
+- `https://aabk6.github.io/kindle-family-board/latest.png`
 
-This is the cleaner path if you do not want a local PC serving files every morning.
+If you want daily automation from the Windows host, install [scripts/install_windows_tasks.ps1](C:\Users\aabec\Scripts\kindle-family-board\scripts\install_windows_tasks.ps1). It creates one `06:55` task that rebuilds the board and republishes the `gh-pages` branch.
 
 ## Recommended rollout
 

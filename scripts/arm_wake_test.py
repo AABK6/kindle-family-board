@@ -41,7 +41,7 @@ def main() -> int:
     remote_script = f"{remote_root}/one_shot_wake_test.sh"
     mode_prefix = "KFB_WAKE_TEST_MODE=display-only " if args.display_only else ""
     background_cmd = (
-        f"nohup sh -c '{mode_prefix}{remote_script} {remote_root} {delay_seconds}' >/dev/null 2>&1 &"
+        f"sh -c '{mode_prefix}{remote_script} {remote_root} {delay_seconds} >/dev/null 2>&1 &'"
     )
 
     client, auth = connect(host=args.host)
