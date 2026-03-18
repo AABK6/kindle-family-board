@@ -1,5 +1,6 @@
 #!/bin/sh
 set -eu
+PATH="/usr/sbin:/usr/bin:/sbin:/bin:${PATH:-}"
 
 ROOT_DIR="${1:-/mnt/us/kindle-family-board}"
 CRON_FILE="/etc/crontab/root"
@@ -27,11 +28,10 @@ grep -v 'kindle-family-board/fetch_and_display.sh' "$CRON_FILE" > "$TMP_FILE" ||
 printf '%s\n' "$CRON_LINE" >> "$TMP_FILE"
 
 mntroot rw >/dev/null 2>&1 || true
-cp "$TMP_FILE" "$CRON_FILE"
+cat "$TMP_FILE" > "$CRON_FILE"
 chmod 644 "$CRON_FILE"
 mntroot ro >/dev/null 2>&1 || true
 rm -f "$TMP_FILE"
 
 /etc/init.d/cron restart >/dev/null 2>&1 || /etc/init.d/cron start >/dev/null 2>&1 || true
 log "ensured cron entry in $CRON_FILE"
-

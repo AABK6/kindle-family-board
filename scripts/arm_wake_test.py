@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-from datetime import datetime
 from pathlib import Path
 import sys
 
@@ -35,12 +34,14 @@ def main() -> int:
     if target <= now:
         raise RuntimeError(f"Target time {args.time} is not in the future. Current time is {now.strftime('%H:%M:%S')}.")
 
-    target_epoch = int(target.timestamp())
+    delay_seconds = int((target - now).total_seconds())
+    if delay_seconds <= 0:
+        raise RuntimeError(f"Target time {args.time} is not in the future. Current time is {now.strftime('%H:%M:%S')}.")
     remote_root = args.remote_root.rstrip("/")
     remote_script = f"{remote_root}/one_shot_wake_test.sh"
     mode_prefix = "KFB_WAKE_TEST_MODE=display-only " if args.display_only else ""
     background_cmd = (
-        f"nohup sh -c '{mode_prefix}{remote_script} {remote_root} {target_epoch}' >/dev/null 2>&1 &"
+        f"nohup sh -c '{mode_prefix}{remote_script} {remote_root} {delay_seconds}' >/dev/null 2>&1 &"
     )
 
     client, auth = connect(host=args.host)
@@ -52,7 +53,7 @@ def main() -> int:
                 sys.stderr.write(err)
             raise RuntimeError("Failed to arm wake test.")
         print(f"Armed wake test on {auth.host} for {target.isoformat()}")
-        print(f"Target epoch: {target_epoch}")
+        print(f"Delay seconds: {delay_seconds}")
         print(f"Log file: {remote_root}/cache/wake-test.log")
     finally:
         client.close()

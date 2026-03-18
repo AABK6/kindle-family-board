@@ -2,12 +2,12 @@
 set -eu
 
 ROOT_DIR="${1:-/mnt/us/kindle-family-board}"
-TARGET_EPOCH="${2:-}"
+DELAY_SECONDS="${2:-}"
 LOG_FILE="$ROOT_DIR/cache/wake-test.log"
 MODE="${KFB_WAKE_TEST_MODE:-fetch}"
 
-if [ -z "$TARGET_EPOCH" ]; then
-  echo "usage: $0 <root-dir> <target-epoch>" >&2
+if [ -z "$DELAY_SECONDS" ]; then
+  echo "usage: $0 <root-dir> <delay-seconds>" >&2
   exit 1
 fi
 
@@ -26,7 +26,8 @@ set_rtc_wakeup() {
   log "set rtcWakeup=$1"
 }
 
-log "armed target_epoch=$TARGET_EPOCH"
+TARGET_EPOCH="$(( $(now_epoch) + DELAY_SECONDS ))"
+log "armed delay_seconds=$DELAY_SECONDS target_epoch=$TARGET_EPOCH"
 
 while :; do
   NOW="$(now_epoch)"
