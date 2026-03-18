@@ -5,11 +5,13 @@ ROOT_DIR="${1:-/mnt/us/kindle-family-board}"
 IMAGE_PATH="${2:-$ROOT_DIR/cache/latest.png}"
 LINKSS_DIR="${KFB_LINKSS_DIR:-/mnt/us/linkss}"
 SCREENSAVER_DIR="$LINKSS_DIR/screensavers"
+ACTIVE_DIR="${KFB_LINKSS_ACTIVE_DIR:-/opt/amazon/screen_saver/600x800}"
 STATE_DIR="$ROOT_DIR/linkss-state"
 MORNING_NAME="${KFB_LINKSS_SCREENSAVER_NAME:-bg_xsmall_ss00.png}"
 MORNING_IMAGE="$SCREENSAVER_DIR/$MORNING_NAME"
 LOG_FILE="$ROOT_DIR/cache/linkss.log"
 CONFLICT_MARKERS="cover backdrop"
+CONVERT_BIN="$LINKSS_DIR/bin/convert"
 
 mkdir -p "$ROOT_DIR/cache"
 
@@ -47,13 +49,46 @@ if [ ! -f "$STATE_DIR/active" ]; then
   log "captured existing linkss screensaver state"
 fi
 
-rm -rf "$SCREENSAVER_DIR"
+TARGET_DIR="$SCREENSAVER_DIR"
+if [ -d "$ACTIVE_DIR" ]; then
+  TARGET_DIR="$ACTIVE_DIR"
+fi
+
 mkdir -p "$SCREENSAVER_DIR"
-cp "$IMAGE_PATH" "$MORNING_IMAGE"
-chmod 644 "$MORNING_IMAGE" 2>/dev/null || true
-log "installed morning screensaver $MORNING_IMAGE"
+
+IMAGE_COUNT=0
+for original in "$STATE_DIR"/original_screensavers/*; do
+  [ -f "$original" ] || continue
+  base="$(basename "$original")"
+  target="$TARGET_DIR/$base"
+  case "$base" in
+    *.jpg|*.jpeg|*.JPG|*.JPEG)
+      if [ -x "$CONVERT_BIN" ]; then
+        "$CONVERT_BIN" "$IMAGE_PATH" "$target" >/dev/null 2>&1 || cp "$IMAGE_PATH" "$target"
+      else
+        cp "$IMAGE_PATH" "$target"
+      fi
+      ;;
+    *)
+      cp "$IMAGE_PATH" "$target"
+      ;;
+  esac
+  chmod 644 "$target" 2>/dev/null || true
+  IMAGE_COUNT=$(( IMAGE_COUNT + 1 ))
+done
+
+if [ "$IMAGE_COUNT" -eq 0 ]; then
+  fallback_target="$TARGET_DIR/$MORNING_NAME"
+  cp "$IMAGE_PATH" "$fallback_target"
+  chmod 644 "$fallback_target" 2>/dev/null || true
+  log "no original screensavers found, installed fallback $fallback_target"
+else
+  log "overwrote $IMAGE_COUNT active screensaver files with board image in $TARGET_DIR"
+fi
+
+sync
 
 if lipc-get-prop com.lab126.powerd status 2>/dev/null | grep -q "Screen Saver"; then
-  /usr/sbin/eips -f -g "$MORNING_IMAGE" >> "$LOG_FILE" 2>&1 || true
+  /usr/sbin/eips -f -g "$IMAGE_PATH" >> "$LOG_FILE" 2>&1 || true
   log "refreshed visible screensaver"
 fi

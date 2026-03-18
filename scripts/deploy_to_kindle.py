@@ -66,6 +66,9 @@ def main() -> int:
             upload_file(sftp, REPO_ROOT / "kindle" / "persist_morning_screensaver.sh", f"{remote_root}/persist_morning_screensaver.sh")
             upload_file(sftp, REPO_ROOT / "kindle" / "restore_screensavers.sh", f"{remote_root}/restore_screensavers.sh")
             upload_file(sftp, REPO_ROOT / "kindle" / "restore_after_delay.sh", f"{remote_root}/restore_after_delay.sh")
+            upload_file(sftp, REPO_ROOT / "kindle" / "board_screensaver_watchdog.sh", f"{remote_root}/board_screensaver_watchdog.sh")
+            upload_file(sftp, REPO_ROOT / "kindle" / "start_board_watchdog.sh", f"{remote_root}/start_board_watchdog.sh")
+            upload_file(sftp, REPO_ROOT / "kindle" / "stop_board_watchdog.sh", f"{remote_root}/stop_board_watchdog.sh")
 
             board_env = "\n".join(
                 [
@@ -94,7 +97,9 @@ def main() -> int:
             f"chmod +x {remote_root}/fetch_and_display.sh {remote_root}/install_cron.sh "
             f"{remote_root}/boot_reseed.sh {remote_root}/one_shot_wake_test.sh "
             f"{remote_root}/run_morning_board.sh {remote_root}/persist_morning_screensaver.sh "
-            f"{remote_root}/restore_screensavers.sh {remote_root}/restore_after_delay.sh"
+            f"{remote_root}/restore_screensavers.sh {remote_root}/restore_after_delay.sh "
+            f"{remote_root}/board_screensaver_watchdog.sh {remote_root}/start_board_watchdog.sh "
+            f"{remote_root}/stop_board_watchdog.sh"
         )
         code, _, err = exec_command(client, chmod_cmd)
         if code != 0:
