@@ -1,0 +1,42 @@
+{
+  "render_date": "2026-03-18",
+  "location_name": "Wassenaar",
+  "board_url": "https://aabk6.github.io/kindle-family-board/latest.png",
+  "reading_error": null,
+  "content": {
+    "render_date": "2026-03-18",
+    "greeting": "Bonjour la famille.",
+    "location_name": "Wassenaar",
+    "weather": {
+      "current_condition": "Nuageux",
+      "current_temperature_c": 13.8,
+      "high_c": 14.8,
+      "low_c": 6.9,
+      "morning": {
+        "label": "Matin",
+        "weather_code": 3,
+        "condition": "Nuageux",
+        "temperature_c": 7.4,
+        "precipitation_probability": 0
+      },
+      "afternoon": {
+        "label": "Apres-midi",
+        "weather_code": 3,
+        "condition": "Nuageux",
+        "temperature_c": 14.8,
+        "precipitation_probability": 0
+      }
+    },
+    "family_message": "Cette famille est plus forte quand elle reste calme et gentille.",
+    "practice_words": [
+      "arbre",
+      "sauter"
+    ],
+    "reading": {
+      "kind": "joke",
+      "title": "Le sapin farceur",
+      "body": "Deux amis se baladent. L'un voit un grand arbre. Il dit : 'C'est un sapin de No\u00ebl!' L'autre r\u00e9pond : 'Oh, j'esp\u00e8re qu'il ne va pas sauter sur nous!' Le premier demande : 'Pourquoi donc?' Le second sourit : 'Parce qu'il a un esprit tr\u00e8s farceur!'",
+      "source": "gemini:gemini-2.5-flash"
+    }
+  }
+}

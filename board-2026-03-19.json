@@ -1,0 +1,42 @@
+{
+  "render_date": "2026-03-19",
+  "location_name": "Wassenaar",
+  "board_url": "https://aabk6.github.io/kindle-family-board/latest.png",
+  "reading_error": null,
+  "content": {
+    "render_date": "2026-03-19",
+    "greeting": "Bonjour la famille.",
+    "location_name": "Wassenaar",
+    "weather": {
+      "current_condition": "Soleil",
+      "current_temperature_c": 6.6,
+      "high_c": 15.3,
+      "low_c": 5.0,
+      "morning": {
+        "label": "Matin",
+        "weather_code": 0,
+        "condition": "Soleil",
+        "temperature_c": 5.9,
+        "precipitation_probability": 0
+      },
+      "afternoon": {
+        "label": "Apres-midi",
+        "weather_code": 3,
+        "condition": "Nuageux",
+        "temperature_c": 13.9,
+        "precipitation_probability": 0
+      }
+    },
+    "family_message": "Les c\u0153urs chauds rendent les familles fortes.",
+    "practice_words": [
+      "carr\u00e9",
+      "histoire"
+    ],
+    "reading": {
+      "kind": "joke",
+      "title": "Jaune et Attendre",
+      "body": "Qu'est-ce qui est jaune et qui attend? Jonathan! C'est une blague rigolote pour d\u00e9marrer la journ\u00e9e avec un sourire. Les mots peuvent cacher des surprises. C'est un peu comme une petite histoire cach\u00e9e qui nous fait rire.",
+      "source": "gemini:gemini-2.5-flash"
+    }
+  }
+}
