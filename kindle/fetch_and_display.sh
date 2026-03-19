@@ -14,6 +14,8 @@ BOARD_URL="${BOARD_URL:-}"
 CACHE_DIR="${CACHE_DIR:-/mnt/us/kindle-family-board/cache}"
 CURL_BIN="${CURL_BIN:-/mnt/us/usbnet/bin/curl}"
 EIPS_BIN="${EIPS_BIN:-/usr/sbin/eips}"
+FETCH_RETRY_COUNT="${KFB_FETCH_RETRY_COUNT:-6}"
+FETCH_RETRY_DELAY="${KFB_FETCH_RETRY_DELAY:-10}"
 TMP_IMAGE="$CACHE_DIR/latest.tmp.png"
 FINAL_IMAGE="$CACHE_DIR/latest.png"
 LOG_FILE="$CACHE_DIR/refresh.log"
@@ -39,12 +41,36 @@ if [ ! -x "$EIPS_BIN" ]; then
   exit 1
 fi
 
-if "$CURL_BIN" --fail --silent --show-error --location "$BOARD_URL" --output "$TMP_IMAGE"; then
-  mv "$TMP_IMAGE" "$FINAL_IMAGE"
-  log "downloaded $BOARD_URL"
-else
+REQUEST_URL="$BOARD_URL"
+case "$REQUEST_URL" in
+  *\?*)
+    REQUEST_URL="${REQUEST_URL}&_ts=$(date +%Y%m%d%H%M%S)"
+    ;;
+  *)
+    REQUEST_URL="${REQUEST_URL}?_ts=$(date +%Y%m%d%H%M%S)"
+    ;;
+esac
+
+download_ok=0
+attempt=1
+while [ "$attempt" -le "$FETCH_RETRY_COUNT" ]; do
+  if "$CURL_BIN" --fail --silent --show-error --location "$REQUEST_URL" --output "$TMP_IMAGE" 2>>"$LOG_FILE"; then
+    mv "$TMP_IMAGE" "$FINAL_IMAGE"
+    log "downloaded $REQUEST_URL on attempt $attempt/$FETCH_RETRY_COUNT"
+    download_ok=1
+    break
+  fi
+
   rm -f "$TMP_IMAGE"
-  log "download failed, keeping cached image"
+  log "download attempt $attempt/$FETCH_RETRY_COUNT failed"
+  if [ "$attempt" -lt "$FETCH_RETRY_COUNT" ]; then
+    sleep "$FETCH_RETRY_DELAY"
+  fi
+  attempt=$(( attempt + 1 ))
+done
+
+if [ "$download_ok" -ne 1 ]; then
+  log "download failed after $FETCH_RETRY_COUNT attempts, keeping cached image"
 fi
 
 if [ ! -f "$FINAL_IMAGE" ]; then

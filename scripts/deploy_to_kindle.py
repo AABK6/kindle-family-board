@@ -62,6 +62,8 @@ def main() -> int:
     board_url = args.board_url or default_env_url
     hold_seconds = os.getenv("KFB_MORNING_HOLD_SECONDS", "10800")
     screensaver_name = os.getenv("KFB_LINKSS_SCREENSAVER_NAME", "bg_xsmall_ss00.png")
+    wake_target_hour = os.getenv("KFB_WAKE_TARGET_HOUR", "7")
+    wake_target_minute = os.getenv("KFB_WAKE_TARGET_MINUTE", "0")
 
     client, auth = connect(host=args.host)
     try:
@@ -75,11 +77,15 @@ def main() -> int:
             upload_file(sftp, REPO_ROOT / "kindle" / "fetch_and_display.sh", f"{remote_root}/fetch_and_display.sh")
             upload_file(sftp, REPO_ROOT / "kindle" / "install_cron.sh", f"{remote_root}/install_cron.sh")
             upload_file(sftp, REPO_ROOT / "kindle" / "boot_reseed.sh", f"{remote_root}/boot_reseed.sh")
+            upload_file(sftp, REPO_ROOT / "kindle" / "daily_wake_scheduler.sh", f"{remote_root}/daily_wake_scheduler.sh")
+            upload_file(sftp, REPO_ROOT / "kindle" / "start_daily_wake_scheduler.sh", f"{remote_root}/start_daily_wake_scheduler.sh")
+            upload_file(sftp, REPO_ROOT / "kindle" / "stop_daily_wake_scheduler.sh", f"{remote_root}/stop_daily_wake_scheduler.sh")
             upload_file(sftp, REPO_ROOT / "kindle" / "one_shot_wake_test.sh", f"{remote_root}/one_shot_wake_test.sh")
             upload_file(sftp, REPO_ROOT / "kindle" / "run_morning_board.sh", f"{remote_root}/run_morning_board.sh")
             upload_file(sftp, REPO_ROOT / "kindle" / "persist_morning_screensaver.sh", f"{remote_root}/persist_morning_screensaver.sh")
             upload_file(sftp, REPO_ROOT / "kindle" / "restore_screensavers.sh", f"{remote_root}/restore_screensavers.sh")
             upload_file(sftp, REPO_ROOT / "kindle" / "restore_after_delay.sh", f"{remote_root}/restore_after_delay.sh")
+            upload_file(sftp, REPO_ROOT / "kindle" / "stop_restore_after_delay.sh", f"{remote_root}/stop_restore_after_delay.sh")
             upload_file(sftp, REPO_ROOT / "kindle" / "board_screensaver_watchdog.sh", f"{remote_root}/board_screensaver_watchdog.sh")
             upload_file(sftp, REPO_ROOT / "kindle" / "start_board_watchdog.sh", f"{remote_root}/start_board_watchdog.sh")
             upload_file(sftp, REPO_ROOT / "kindle" / "stop_board_watchdog.sh", f"{remote_root}/stop_board_watchdog.sh")
@@ -93,6 +99,8 @@ def main() -> int:
                     f"export KFB_MORNING_HOLD_SECONDS={hold_seconds}",
                     f"export KFB_LINKSS_SCREENSAVER_NAME={screensaver_name}",
                     f"export KFB_NORMAL_SCREENSAVER_DIR={remote_root}/normal-screensavers",
+                    f"export KFB_WAKE_TARGET_HOUR={wake_target_hour}",
+                    f"export KFB_WAKE_TARGET_MINUTE={wake_target_minute}",
                     "export CURL_BIN=/mnt/us/usbnet/bin/curl",
                     "export EIPS_BIN=/usr/sbin/eips",
                     "",
@@ -125,9 +133,12 @@ def main() -> int:
 
         chmod_cmd = (
             f"chmod +x {remote_root}/fetch_and_display.sh {remote_root}/install_cron.sh "
-            f"{remote_root}/boot_reseed.sh {remote_root}/one_shot_wake_test.sh "
+            f"{remote_root}/boot_reseed.sh {remote_root}/daily_wake_scheduler.sh "
+            f"{remote_root}/start_daily_wake_scheduler.sh {remote_root}/stop_daily_wake_scheduler.sh "
+            f"{remote_root}/one_shot_wake_test.sh "
             f"{remote_root}/run_morning_board.sh {remote_root}/persist_morning_screensaver.sh "
             f"{remote_root}/restore_screensavers.sh {remote_root}/restore_after_delay.sh "
+            f"{remote_root}/stop_restore_after_delay.sh "
             f"{remote_root}/board_screensaver_watchdog.sh {remote_root}/start_board_watchdog.sh "
             f"{remote_root}/stop_board_watchdog.sh {remote_root}/one_shot_screensaver_refresh.sh "
             f"{remote_root}/install_normal_screensavers.sh"

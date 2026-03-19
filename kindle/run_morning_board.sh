@@ -35,6 +35,10 @@ fi
 "$ROOT_DIR/persist_morning_screensaver.sh" "$ROOT_DIR" "$ROOT_DIR/cache/latest.png" >> "$LOG_FILE" 2>&1 || log "morning screensaver persistence failed"
 "$ROOT_DIR/start_board_watchdog.sh" "$ROOT_DIR" >> "$LOG_FILE" 2>&1 || log "board watchdog start failed"
 
+if [ -x "$ROOT_DIR/stop_restore_after_delay.sh" ]; then
+  "$ROOT_DIR/stop_restore_after_delay.sh" "$ROOT_DIR" >> "$LOG_FILE" 2>&1 || log "failed to stop existing restore helpers"
+fi
+
 if [ "$HOLD_SECONDS" -gt 0 ] && [ -x "$ROOT_DIR/restore_after_delay.sh" ]; then
   TOKEN="$(date +%s)"
   printf '%s\n' "$TOKEN" > "$ROOT_DIR/linkss-state/restore.token"

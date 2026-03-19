@@ -35,3 +35,13 @@ rm -f "$TMP_FILE"
 
 /etc/init.d/cron restart >/dev/null 2>&1 || /etc/init.d/cron start >/dev/null 2>&1 || true
 log "ensured cron entry in $CRON_FILE"
+
+if [ -x "$ROOT_DIR/stop_daily_wake_scheduler.sh" ]; then
+  "$ROOT_DIR/stop_daily_wake_scheduler.sh" "$ROOT_DIR" >> "$LOG_FILE" 2>&1 || log "failed to stop existing daily wake scheduler"
+fi
+
+if [ -x "$ROOT_DIR/start_daily_wake_scheduler.sh" ]; then
+  KFB_ENV_FILE="$ROOT_DIR/board.env" "$ROOT_DIR/start_daily_wake_scheduler.sh" "$ROOT_DIR" >> "$LOG_FILE" 2>&1 || log "failed to start daily wake scheduler"
+else
+  log "start_daily_wake_scheduler.sh missing"
+fi
