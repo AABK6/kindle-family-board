@@ -162,11 +162,11 @@ def _sv(value: float, scale: float) -> int:
 
 
 def draw_badge_canvas(draw: ImageDraw.ImageDraw, box: tuple[int, int, int, int]) -> tuple[int, int]:
-    left = box[0] + 8
-    top = box[1] - 8
+    left = box[0] - 6
+    top = box[1] - 14
     right = left + 74
     bottom = top + 58
-    draw.rounded_rectangle((left, top + 6, right, bottom), radius=14, fill=252)
+    draw.rounded_rectangle((left, top, right, bottom), radius=14, fill=255)
     return left, top
 
 
