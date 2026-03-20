@@ -20,7 +20,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Generate the daily Kindle family board.")
     parser.add_argument("--date", help="Override the render date (YYYY-MM-DD).")
     parser.add_argument("--output-dir", help="Override the output directory.")
-    parser.add_argument("--skip-gemini", action="store_true", help="Force fallback reading content.")
+    parser.add_argument("--skip-gemini", action="store_true", help=argparse.SUPPRESS)
     return parser.parse_args()
 
 
@@ -31,7 +31,7 @@ def main() -> int:
     if args.output_dir:
         config.output_dir = Path(args.output_dir).expanduser()
     if args.skip_gemini:
-        config.gemini_api_key = None
+        print("Note: --skip-gemini is deprecated; the local carousel is always used.", file=sys.stderr)
 
     target_date = date.fromisoformat(args.date) if args.date else None
     image_path, manifest_path = generate_board(config=config, target_date=target_date)

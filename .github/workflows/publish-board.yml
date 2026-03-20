@@ -21,8 +21,6 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     env:
-      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY || secrets.GOOGLE_API_KEY }}
-      GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY || secrets.GEMINI_API_KEY }}
       KFB_LOCATION_NAME: ${{ vars.KFB_LOCATION_NAME }}
       KFB_LATITUDE: ${{ vars.KFB_LATITUDE }}
       KFB_LONGITUDE: ${{ vars.KFB_LONGITUDE }}

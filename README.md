@@ -6,7 +6,7 @@ Current production behavior:
 
 - the board is rendered in French
 - weather defaults to Wassenaar, NL
-- the reading block prefers short jokes for the older child
+- the reading block comes from a local carousel of jokes and fun facts
 - the visual style uses `burst` corner icons
 - GitHub Pages hosts the daily `latest.png`
 - at `07:00`, the Kindle fetches and shows the board
@@ -22,7 +22,7 @@ The implementation is intentionally split in two:
 - off-device Python renders the board and publishes `latest.png` plus `latest.json`
 - the Kindle only downloads, displays, persists, and later restores screensavers
 
-That keeps the Kindle-side logic small and gives the host side full freedom for layout, weather formatting, and Gemini generation.
+That keeps the Kindle-side logic small and gives the host side full freedom for layout, weather formatting, and reading-content curation.
 
 ## Repo layout
 
@@ -42,7 +42,7 @@ That keeps the Kindle-side logic small and gives the host side full freedom for 
 - [kindle/linkss_emergency.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\linkss_emergency.sh): hooks the `linkss` emergency path so cron re-seeding happens automatically at boot
 - [data/kind_messages.txt](C:\Users\aabec\Scripts\kindle-family-board\data\kind_messages.txt): family aphorisms and sweet messages
 - [data/easy_words.txt](C:\Users\aabec\Scripts\kindle-family-board\data\easy_words.txt): reading words for the younger child
-- [data/fallback_readings.json](C:\Users\aabec\Scripts\kindle-family-board\data\fallback_readings.json): fallback jokes
+- [data/reading_carousel.md](C:\Users\aabec\Scripts\kindle-family-board\data\reading_carousel.md): rotating jokes and fun facts for the older child
 
 ## Current defaults
 
@@ -60,8 +60,7 @@ The board content is French-first. The weather block shows only morning and afte
 
 1. Create a venv and install the package.
 2. Review [`.env`](C:\Users\aabec\Scripts\kindle-family-board\.env) if you want to override location, host, or board URL.
-3. Set `GEMINI_API_KEY` in your shell or `.env`.
-4. Generate the board once:
+3. Generate the board once:
 
 ```bash
 C:\Users\aabec\Scripts\kindle-family-board\.venv\Scripts\python scripts/generate_board.py
@@ -76,8 +75,8 @@ Output lands in:
 
 The primary hosting path is GitHub Pages.
 
-- [publish-board.yml](C:\Users\aabec\Scripts\kindle-family-board\.github\workflows\publish-board.yml) runs every hour at minute `05`
-- the workflow only publishes during the local `07` hour in `Europe/Amsterdam`
+- [publish-board.yml](C:\Users\aabec\Scripts\kindle-family-board\.github\workflows\publish-board.yml) runs at minutes `07, 22, 37, 52`
+- the workflow republishes during the local morning window in `Europe/Amsterdam` until `latest.json` is current for the day
 - the stable image URL is [latest.png](https://aabk6.github.io/kindle-family-board/latest.png)
 
 Manual publish fallback:
@@ -172,6 +171,7 @@ The helper scans the whole local `/24`, not just low addresses. If your Kindle h
 ## Notes
 
 - The board is always rendered at `600x800`.
-- If Gemini fails, the generator falls back to local French jokes.
-- The family message, the younger child words, and the fallback joke are pseudo-random by date: stable for a given day, varied across days.
+- The reading card comes from a local carousel of curated French jokes and fun facts.
+- The carousel is shuffled by cycle and avoids showing the same reading twice in a row, even when it starts a new loop.
+- The family message and the younger child words are pseudo-random by date: stable for a given day, varied across days.
 - The exact timed wake has been proven on this Kindle, but long multi-day battery endurance is still an operational question. If you want maximum reliability, keep it charged.

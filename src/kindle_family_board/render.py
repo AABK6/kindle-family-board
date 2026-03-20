@@ -157,78 +157,385 @@ def draw_badge_base(draw: ImageDraw.ImageDraw, center: tuple[int, int], style: s
     draw.ellipse((right - 8, cy - 19, right + 3, cy - 8), fill=0)
 
 
+def _sv(value: float, scale: float) -> int:
+    return int(round(value * scale))
+
+
 def draw_cloud(draw: ImageDraw.ImageDraw, center: tuple[int, int], scale: float) -> None:
     cx, cy = center
-    draw.ellipse((cx - 18 * scale, cy - 6 * scale, cx + 18 * scale, cy + 12 * scale), outline=0, width=2)
-    draw.ellipse((cx - 24 * scale, cy - 2 * scale, cx - 4 * scale, cy + 14 * scale), outline=0, width=2)
-    draw.ellipse((cx - 2 * scale, cy - 11 * scale, cx + 21 * scale, cy + 10 * scale), outline=0, width=2)
-    draw.line((cx - 20 * scale, cy + 10 * scale, cx + 18 * scale, cy + 10 * scale), fill=255, width=max(1, int(3 * scale)))
-    draw.line((cx - 20 * scale, cy + 11 * scale, cx + 18 * scale, cy + 11 * scale), fill=0, width=2)
+    stroke = max(2, _sv(2.3, scale))
+    draw.arc(
+        (cx - _sv(30, scale), cy - _sv(1, scale), cx - _sv(4, scale), cy + _sv(21, scale)),
+        start=180,
+        end=322,
+        fill=0,
+        width=stroke,
+    )
+    draw.arc(
+        (cx - _sv(12, scale), cy - _sv(16, scale), cx + _sv(18, scale), cy + _sv(14, scale)),
+        start=180,
+        end=360,
+        fill=0,
+        width=stroke,
+    )
+    draw.arc(
+        (cx + _sv(5, scale), cy - _sv(9, scale), cx + _sv(30, scale), cy + _sv(16, scale)),
+        start=218,
+        end=360,
+        fill=0,
+        width=stroke,
+    )
+    baseline_y = cy + _sv(12, scale)
+    draw.line((cx - _sv(23, scale), baseline_y, cx + _sv(24, scale), baseline_y), fill=0, width=stroke)
 
 
 def draw_sun(draw: ImageDraw.ImageDraw, center: tuple[int, int], radius: int) -> None:
     cx, cy = center
-    draw.ellipse((cx - radius, cy - radius, cx + radius, cy + radius), outline=0, width=2)
+    stroke = max(2, radius // 5)
+    ray_inner = radius + max(5, radius // 2)
+    ray_outer = radius + max(10, radius)
+    draw.ellipse((cx - radius, cy - radius, cx + radius, cy + radius), outline=0, width=stroke)
     for angle_deg in range(0, 360, 45):
         angle = math.radians(angle_deg)
-        x1 = cx + math.cos(angle) * (radius + 5)
-        y1 = cy + math.sin(angle) * (radius + 5)
-        x2 = cx + math.cos(angle) * (radius + 11)
-        y2 = cy + math.sin(angle) * (radius + 11)
-        draw.line((x1, y1, x2, y2), fill=0, width=2)
+        x1 = cx + math.cos(angle) * ray_inner
+        y1 = cy + math.sin(angle) * ray_inner
+        x2 = cx + math.cos(angle) * ray_outer
+        y2 = cy + math.sin(angle) * ray_outer
+        draw.line((x1, y1, x2, y2), fill=0, width=stroke)
 
 
-def draw_raindrops(draw: ImageDraw.ImageDraw, start: tuple[int, int], spacing: int) -> None:
-    x, y = start
-    for offset in (-spacing, 0, spacing):
-        draw.line((x + offset, y, x + offset - 2, y + 8), fill=0, width=2)
-
-
-def draw_snow(draw: ImageDraw.ImageDraw, center: tuple[int, int], spacing: int) -> None:
+def draw_precip_drop(draw: ImageDraw.ImageDraw, center: tuple[int, int], *, scale: float = 1.0) -> None:
     cx, cy = center
-    for offset in (-spacing, spacing):
-        x = cx + offset
-        draw.line((x - 3, cy, x + 3, cy), fill=0, width=1)
-        draw.line((x, cy - 3, x, cy + 3), fill=0, width=1)
-        draw.line((x - 2, cy - 2, x + 2, cy + 2), fill=0, width=1)
-        draw.line((x - 2, cy + 2, x + 2, cy - 2), fill=0, width=1)
+    points = [
+        (cx, cy - _sv(8, scale)),
+        (cx + _sv(5, scale), cy),
+        (cx + _sv(3, scale), cy + _sv(8, scale)),
+        (cx - _sv(3, scale), cy + _sv(8, scale)),
+        (cx - _sv(5, scale), cy),
+    ]
+    draw.polygon(points, fill=0)
 
 
-def draw_lightning(draw: ImageDraw.ImageDraw, center: tuple[int, int]) -> None:
+def draw_rain(draw: ImageDraw.ImageDraw, center: tuple[int, int], *, scale: float = 1.0) -> None:
     cx, cy = center
-    draw.line((cx, cy - 10, cx - 5, cy + 2, cx + 1, cy + 2, cx - 4, cy + 14), fill=0, width=3, joint="curve")
+    draw_cloud(draw, (cx, cy - _sv(8, scale)), 0.95 * scale)
+    for offset in (-18, -6, 6, 18):
+        draw_precip_drop(draw, (cx + _sv(offset, scale), cy + _sv(20, scale)), scale=0.85 * scale)
 
 
-def draw_condition_icon(draw: ImageDraw.ImageDraw, center: tuple[int, int], weather_code: int, *, scale: float = 1.0) -> None:
-    if weather_code in {0, 1}:
+def draw_showers(draw: ImageDraw.ImageDraw, center: tuple[int, int], *, scale: float = 1.0) -> None:
+    cx, cy = center
+    stroke = max(2, _sv(2.2, scale))
+    draw_cloud(draw, (cx, cy - _sv(8, scale)), 0.95 * scale)
+    top_y = cy + _sv(12, scale)
+    bottom_y = cy + _sv(25, scale)
+    for offset in (-18, -8, 2, 12, 22):
+        start_x = cx + _sv(offset, scale)
+        draw.line((start_x, top_y, start_x - _sv(4, scale), bottom_y), fill=0, width=stroke)
+
+
+def draw_lightning(draw: ImageDraw.ImageDraw, center: tuple[int, int], *, scale: float = 1.0) -> None:
+    cx, cy = center
+    points = [
+        (cx + _sv(3, scale), cy - _sv(15, scale)),
+        (cx - _sv(7, scale), cy + _sv(1, scale)),
+        (cx + _sv(1, scale), cy + _sv(1, scale)),
+        (cx - _sv(10, scale), cy + _sv(22, scale)),
+        (cx + _sv(13, scale), cy - _sv(4, scale)),
+        (cx + _sv(4, scale), cy - _sv(4, scale)),
+    ]
+    draw.polygon(points, fill=0)
+
+
+def draw_storm(draw: ImageDraw.ImageDraw, center: tuple[int, int], *, scale: float = 1.0) -> None:
+    cx, cy = center
+    draw_cloud(draw, (cx, cy - _sv(8, scale)), 0.95 * scale)
+    draw_lightning(draw, (cx + _sv(2, scale), cy + _sv(17, scale)), scale=0.9 * scale)
+
+
+def draw_snowflake(draw: ImageDraw.ImageDraw, center: tuple[int, int], *, scale: float = 1.0) -> None:
+    cx, cy = center
+    radius = _sv(22, scale)
+    stroke = max(2, _sv(2.0, scale))
+    for angle_deg in range(0, 180, 30):
+        angle = math.radians(angle_deg)
+        dx = math.cos(angle) * radius
+        dy = math.sin(angle) * radius
+        x1 = cx - dx
+        y1 = cy - dy
+        x2 = cx + dx
+        y2 = cy + dy
+        draw.line((x1, y1, x2, y2), fill=0, width=stroke)
+
+        for sign in (-1, 1):
+            branch_x = cx + math.cos(angle) * radius * 0.58 * sign
+            branch_y = cy + math.sin(angle) * radius * 0.58 * sign
+            for branch_angle_deg in (angle_deg + 60, angle_deg - 60):
+                branch_angle = math.radians(branch_angle_deg)
+                bx = branch_x + math.cos(branch_angle) * radius * 0.24 * sign
+                by = branch_y + math.sin(branch_angle) * radius * 0.24 * sign
+                draw.line((branch_x, branch_y, bx, by), fill=0, width=max(1, stroke - 1))
+
+
+def draw_wave_line(draw: ImageDraw.ImageDraw, left: int, y: int, *, scale: float = 1.0) -> None:
+    segment = _sv(10, scale)
+    amplitude = _sv(3.5, scale)
+    stroke = max(2, _sv(1.8, scale))
+    x = left
+    for _ in range(4):
+        draw.arc((x, y - amplitude, x + segment, y + amplitude), start=180, end=360, fill=0, width=stroke)
+        x += segment
+        draw.arc((x, y - amplitude, x + segment, y + amplitude), start=0, end=180, fill=0, width=stroke)
+        x += segment
+
+
+def draw_fog(draw: ImageDraw.ImageDraw, center: tuple[int, int], *, scale: float = 1.0) -> None:
+    cx, cy = center
+    draw_cloud(draw, (cx, cy - _sv(10, scale)), 0.95 * scale)
+    left = cx - _sv(24, scale)
+    for row in range(3):
+        draw_wave_line(draw, left, cy + _sv(10 + row * 8, scale), scale=0.9 * scale)
+
+
+def draw_condition_icon_classic(
+    draw: ImageDraw.ImageDraw,
+    center: tuple[int, int],
+    weather_code: int,
+    *,
+    scale: float = 1.0,
+) -> None:
+    if weather_code == 0:
         draw_sun(draw, center, max(8, int(10 * scale)))
         return
 
-    if weather_code == 2:
-        draw_sun(draw, (center[0] - int(10 * scale), center[1] - int(8 * scale)), max(7, int(8 * scale)))
-        draw_cloud(draw, (center[0] + int(3 * scale), center[1] + int(3 * scale)), 0.75 * scale)
+    if weather_code in {1, 2}:
+        draw_sun(draw, (center[0] - _sv(14, scale), center[1] - _sv(10, scale)), max(8, _sv(10, scale)))
+        draw_cloud(draw, (center[0] + _sv(5, scale), center[1] + _sv(4, scale)), 0.82 * scale)
         return
 
-    if weather_code in {3, 45, 48}:
+    if weather_code == 3:
         draw_cloud(draw, center, 0.95 * scale)
         return
 
-    if weather_code in {51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82}:
-        draw_cloud(draw, (center[0], center[1] - int(3 * scale)), 0.95 * scale)
-        draw_raindrops(draw, (center[0], center[1] + int(14 * scale)), max(5, int(7 * scale)))
+    if weather_code in {45, 48}:
+        draw_fog(draw, center, scale=0.95 * scale)
+        return
+
+    if weather_code in {51, 53, 55, 56, 57, 80, 81, 82}:
+        draw_showers(draw, center, scale=0.95 * scale)
+        return
+
+    if weather_code in {61, 63, 65, 66, 67}:
+        draw_rain(draw, center, scale=0.95 * scale)
         return
 
     if weather_code in {71, 73, 75, 77, 85, 86}:
-        draw_cloud(draw, (center[0], center[1] - int(3 * scale)), 0.95 * scale)
-        draw_snow(draw, (center[0], center[1] + int(14 * scale)), max(5, int(7 * scale)))
+        draw_snowflake(draw, center, scale=0.95 * scale)
         return
 
     if weather_code in {95, 96, 99}:
-        draw_cloud(draw, (center[0], center[1] - int(4 * scale)), 0.95 * scale)
-        draw_lightning(draw, (center[0] + int(2 * scale), center[1] + int(11 * scale)))
+        draw_storm(draw, center, scale=0.95 * scale)
         return
 
     draw_cloud(draw, center, 0.95 * scale)
+
+
+def draw_sun_refined(draw: ImageDraw.ImageDraw, center: tuple[int, int], *, scale: float = 1.0, partial: bool = False) -> None:
+    cx, cy = center
+    radius = max(9, _sv(12, scale))
+    stroke = max(2, _sv(2.4, scale))
+    inner = radius + _sv(6, scale)
+    outer = radius + _sv(15, scale)
+
+    for angle_deg in range(0, 360, 45):
+        if partial and 90 <= angle_deg <= 225:
+            continue
+        angle = math.radians(angle_deg)
+        x1 = cx + math.cos(angle) * inner
+        y1 = cy + math.sin(angle) * inner
+        x2 = cx + math.cos(angle) * outer
+        y2 = cy + math.sin(angle) * outer
+        draw.line((x1, y1, x2, y2), fill=0, width=stroke)
+
+    draw.ellipse((cx - radius, cy - radius, cx + radius, cy + radius), outline=0, width=stroke)
+
+
+def draw_cloud_refined(draw: ImageDraw.ImageDraw, center: tuple[int, int], *, scale: float = 1.0) -> None:
+    cx, cy = center
+    stroke = max(2, _sv(2.5, scale))
+    draw.arc(
+        (cx - _sv(34, scale), cy - _sv(2, scale), cx - _sv(8, scale), cy + _sv(22, scale)),
+        start=180,
+        end=320,
+        fill=0,
+        width=stroke,
+    )
+    draw.arc(
+        (cx - _sv(18, scale), cy - _sv(20, scale), cx + _sv(16, scale), cy + _sv(14, scale)),
+        start=180,
+        end=356,
+        fill=0,
+        width=stroke,
+    )
+    draw.arc(
+        (cx + _sv(6, scale), cy - _sv(12, scale), cx + _sv(34, scale), cy + _sv(16, scale)),
+        start=208,
+        end=360,
+        fill=0,
+        width=stroke,
+    )
+    draw.line((cx - _sv(28, scale), cy + _sv(12, scale), cx + _sv(27, scale), cy + _sv(12, scale)), fill=0, width=stroke)
+
+
+def draw_drop_refined(draw: ImageDraw.ImageDraw, center: tuple[int, int], *, scale: float = 1.0) -> None:
+    cx, cy = center
+    points = [
+        (cx, cy - _sv(9, scale)),
+        (cx + _sv(5, scale), cy - _sv(1, scale)),
+        (cx + _sv(4, scale), cy + _sv(8, scale)),
+        (cx, cy + _sv(11, scale)),
+        (cx - _sv(4, scale), cy + _sv(8, scale)),
+        (cx - _sv(5, scale), cy - _sv(1, scale)),
+    ]
+    draw.polygon(points, fill=0)
+
+
+def draw_rain_refined(draw: ImageDraw.ImageDraw, center: tuple[int, int], *, scale: float = 1.0) -> None:
+    cx, cy = center
+    draw_cloud_refined(draw, (cx, cy - _sv(8, scale)), scale=scale)
+    for offset in (-20, -7, 7, 20):
+        draw_drop_refined(draw, (cx + _sv(offset, scale), cy + _sv(21, scale)), scale=0.9 * scale)
+
+
+def draw_showers_refined(draw: ImageDraw.ImageDraw, center: tuple[int, int], *, scale: float = 1.0) -> None:
+    cx, cy = center
+    stroke = max(2, _sv(2.2, scale))
+    draw_cloud_refined(draw, (cx, cy - _sv(8, scale)), scale=scale)
+    top_y = cy + _sv(11, scale)
+    bottom_y = cy + _sv(28, scale)
+    for offset in (-20, -10, 0, 10, 20):
+        x = cx + _sv(offset, scale)
+        draw.line((x, top_y, x - _sv(5, scale), bottom_y), fill=0, width=stroke)
+
+
+def draw_lightning_refined(draw: ImageDraw.ImageDraw, center: tuple[int, int], *, scale: float = 1.0) -> None:
+    cx, cy = center
+    points = [
+        (cx + _sv(4, scale), cy - _sv(17, scale)),
+        (cx - _sv(6, scale), cy + _sv(1, scale)),
+        (cx + _sv(2, scale), cy + _sv(1, scale)),
+        (cx - _sv(11, scale), cy + _sv(24, scale)),
+        (cx + _sv(14, scale), cy - _sv(4, scale)),
+        (cx + _sv(5, scale), cy - _sv(4, scale)),
+    ]
+    draw.polygon(points, fill=0)
+
+
+def draw_storm_refined(draw: ImageDraw.ImageDraw, center: tuple[int, int], *, scale: float = 1.0) -> None:
+    cx, cy = center
+    draw_cloud_refined(draw, (cx, cy - _sv(8, scale)), scale=scale)
+    draw_lightning_refined(draw, (cx + _sv(2, scale), cy + _sv(17, scale)), scale=0.95 * scale)
+
+
+def draw_snowflake_refined(draw: ImageDraw.ImageDraw, center: tuple[int, int], *, scale: float = 1.0) -> None:
+    cx, cy = center
+    radius = _sv(23, scale)
+    stroke = max(2, _sv(2.0, scale))
+    for angle_deg in (0, 60, 120):
+        angle = math.radians(angle_deg)
+        dx = math.cos(angle) * radius
+        dy = math.sin(angle) * radius
+        x1 = cx - dx
+        y1 = cy - dy
+        x2 = cx + dx
+        y2 = cy + dy
+        draw.line((x1, y1, x2, y2), fill=0, width=stroke)
+
+        for sign in (-1, 1):
+            branch_x = cx + math.cos(angle) * radius * 0.58 * sign
+            branch_y = cy + math.sin(angle) * radius * 0.58 * sign
+            for branch_offset in (-35, 35):
+                branch_angle = math.radians(angle_deg + branch_offset)
+                bx = branch_x + math.cos(branch_angle) * radius * 0.22 * sign
+                by = branch_y + math.sin(branch_angle) * radius * 0.22 * sign
+                draw.line((branch_x, branch_y, bx, by), fill=0, width=max(1, stroke - 1))
+
+
+def draw_wave_refined(draw: ImageDraw.ImageDraw, left: int, y: int, *, scale: float = 1.0) -> None:
+    segment = _sv(11, scale)
+    amplitude = _sv(3.5, scale)
+    stroke = max(2, _sv(1.9, scale))
+    x = left
+    for _ in range(4):
+        draw.arc((x, y - amplitude, x + segment, y + amplitude), start=180, end=360, fill=0, width=stroke)
+        x += segment
+        draw.arc((x, y - amplitude, x + segment, y + amplitude), start=0, end=180, fill=0, width=stroke)
+        x += segment
+
+
+def draw_fog_refined(draw: ImageDraw.ImageDraw, center: tuple[int, int], *, scale: float = 1.0) -> None:
+    cx, cy = center
+    draw_cloud_refined(draw, (cx, cy - _sv(12, scale)), scale=scale)
+    left = cx - _sv(29, scale)
+    for row in range(3):
+        draw_wave_refined(draw, left, cy + _sv(10 + row * 8, scale), scale=0.95 * scale)
+
+
+def draw_condition_icon_refined(
+    draw: ImageDraw.ImageDraw,
+    center: tuple[int, int],
+    weather_code: int,
+    *,
+    scale: float = 1.0,
+) -> None:
+    if weather_code == 0:
+        draw_sun_refined(draw, center, scale=scale)
+        return
+
+    if weather_code in {1, 2}:
+        draw_sun_refined(draw, (center[0] - _sv(16, scale), center[1] - _sv(12, scale)), scale=0.98 * scale, partial=True)
+        draw_cloud_refined(draw, (center[0] + _sv(5, scale), center[1] + _sv(4, scale)), scale=0.9 * scale)
+        return
+
+    if weather_code == 3:
+        draw_cloud_refined(draw, center, scale=scale)
+        return
+
+    if weather_code in {45, 48}:
+        draw_fog_refined(draw, center, scale=scale)
+        return
+
+    if weather_code in {51, 53, 55, 56, 57, 80, 81, 82}:
+        draw_showers_refined(draw, center, scale=scale)
+        return
+
+    if weather_code in {61, 63, 65, 66, 67}:
+        draw_rain_refined(draw, center, scale=scale)
+        return
+
+    if weather_code in {71, 73, 75, 77, 85, 86}:
+        draw_snowflake_refined(draw, center, scale=scale)
+        return
+
+    if weather_code in {95, 96, 99}:
+        draw_storm_refined(draw, center, scale=scale)
+        return
+
+    draw_cloud_refined(draw, center, scale=scale)
+
+
+def draw_condition_icon(
+    draw: ImageDraw.ImageDraw,
+    center: tuple[int, int],
+    weather_code: int,
+    *,
+    scale: float = 1.0,
+    style: str = "refined",
+) -> None:
+    if style == "classic":
+        draw_condition_icon_classic(draw, center, weather_code, scale=scale)
+        return
+    draw_condition_icon_refined(draw, center, weather_code, scale=scale)
 
 
 def draw_thermometer(draw: ImageDraw.ImageDraw, x: int, y: int, *, scale: float = 1.0) -> None:
@@ -324,11 +631,12 @@ def draw_weather_period(
     label_font: ImageFont.ImageFont,
     value_font: ImageFont.ImageFont,
     small_font: ImageFont.ImageFont,
+    weather_icon_style: str,
 ) -> None:
     left, top, right, bottom = box
     center_x = (left + right) // 2
     draw.text((left, top), label, font=label_font, fill=0)
-    draw_condition_icon(draw, (center_x, top + 42), weather_code, scale=1.0)
+    draw_condition_icon(draw, (center_x, top + 43), weather_code, scale=1.04, style=weather_icon_style)
 
     thermo_x = left + 16
     temp_y = top + 76
@@ -409,6 +717,7 @@ def render_board(content: BoardContent, config: BoardConfig, output_path: Path) 
         label_font=weather_label_font,
         value_font=weather_value_font,
         small_font=weather_small_font,
+        weather_icon_style=config.weather_icon_style,
     )
     draw_weather_period(
         draw,
@@ -420,6 +729,7 @@ def render_board(content: BoardContent, config: BoardConfig, output_path: Path) 
         label_font=weather_label_font,
         value_font=weather_value_font,
         small_font=weather_small_font,
+        weather_icon_style=config.weather_icon_style,
     )
     y = weather_box[3] + card_gap
 

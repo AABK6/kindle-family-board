@@ -30,12 +30,11 @@ class BoardConfig:
     latitude: float
     longitude: float
     timezone: str
-    gemini_api_key: str | None
-    gemini_model: str
     output_dir: Path
     data_dir: Path
     board_url: str
     icon_style: str
+    weather_icon_style: str
     image_width: int = 600
     image_height: int = 800
     weather_url: str = "https://api.open-meteo.com/v1/forecast"
@@ -47,12 +46,11 @@ class BoardConfig:
             latitude=_env_float("KFB_LATITUDE", 52.1450),
             longitude=_env_float("KFB_LONGITUDE", 4.4028),
             timezone=os.getenv("KFB_TIMEZONE", "Europe/Amsterdam"),
-            gemini_api_key=os.getenv("GEMINI_API_KEY"),
-            gemini_model=os.getenv("KFB_GEMINI_MODEL", "gemini-2.5-flash"),
             output_dir=_env_path("KFB_OUTPUT_DIR", ROOT_DIR / "output"),
             data_dir=ROOT_DIR / "data",
             board_url=os.getenv("KFB_BOARD_URL", "https://example.com/kindle-family-board/latest.png"),
             icon_style=os.getenv("KFB_ICON_STYLE", "burst"),
+            weather_icon_style=os.getenv("KFB_WEATHER_ICON_STYLE", "classic"),
         )
 
     @property

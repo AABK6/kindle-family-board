@@ -7,8 +7,7 @@ from pathlib import Path
 from shutil import copy2
 
 from .config import BoardConfig
-from .content import load_fallback_readings, load_lines, pick_fallback_reading, pick_practice_words, pick_rotating_item
-from .gemini import generate_reading
+from .content import load_lines, load_reading_carousel, pick_carousel_reading, pick_practice_words, pick_rotating_item
 from .models import BoardContent
 from .render import render_board
 from .weather import fetch_weather
@@ -32,24 +31,13 @@ def build_content(config: BoardConfig, target_date: date | None = None) -> tuple
 
     messages = load_lines(config.data_dir / "kind_messages.txt")
     words = load_lines(config.data_dir / "easy_words.txt")
-    fallback_readings = load_fallback_readings(config.data_dir / "fallback_readings.json")
+    reading_carousel = load_reading_carousel(config.data_dir / "reading_carousel.md")
 
     family_message = pick_rotating_item(messages, target_date)
     practice_words = pick_practice_words(words, target_date)
     weather = fetch_weather(config, target_date=target_date)
-
+    reading = pick_carousel_reading(reading_carousel, target_date)
     reading_error: str | None = None
-    try:
-        reading = generate_reading(
-            config=config,
-            target_date=target_date,
-            family_message=family_message,
-            practice_words=practice_words,
-            weather=weather,
-        )
-    except Exception as exc:
-        reading = pick_fallback_reading(fallback_readings, target_date)
-        reading_error = str(exc)
 
     content = BoardContent(
         render_date=target_date,

@@ -9,7 +9,7 @@ The current board shows:
 - weather for Wassenaar, NL
 - a warm family message
 - two easy reading words for the 6-year-old
-- one short joke for the 9-year-old
+- one rotating joke or fun fact for the 9-year-old
 
 The board copy is French-first and the layout is optimized for `600x800`.
 
@@ -27,9 +27,16 @@ The generator:
 1. fetches Open-Meteo weather
 2. picks a pseudo-random family aphorism for the day
 3. picks two pseudo-random reading words for the day
-4. asks Gemini for a short French joke, with local fallback jokes if Gemini is unavailable
+4. picks one entry from a curated local carousel of French jokes and fun facts
 
-This keeps weather formatting, typography, and LLM usage off the Kindle.
+The reading carousel is deterministic by date:
+
+- each cycle shuffles the full set
+- each day advances to the next entry
+- no entry repeats until the whole set has been consumed
+- the first entry of a new cycle is forced not to repeat the last entry of the previous cycle
+
+This keeps weather formatting, typography, and content curation off the Kindle.
 
 ### 2. GitHub Pages as the production host
 
