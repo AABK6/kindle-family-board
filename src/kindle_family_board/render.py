@@ -687,15 +687,27 @@ def draw_thermometer(draw: ImageDraw.ImageDraw, x: int, y: int, *, scale: float 
 
 
 def draw_drop(draw: ImageDraw.ImageDraw, x: int, y: int, *, scale: float = 1.0) -> None:
-    points = [
-        (x, y - 10 * scale),
-        (x + 6 * scale, y),
-        (x + 3 * scale, y + 8 * scale),
-        (x - 3 * scale, y + 8 * scale),
-        (x - 6 * scale, y),
-    ]
-    draw.polygon(points, outline=0, fill=255)
-    draw.line(points + [points[0]], fill=0, width=2)
+    stroke = max(2, _sv(1.8, scale))
+    radius_x = _sv(5.0, scale)
+    radius_y = _sv(6.0, scale)
+    point_y = y - _sv(9.0, scale)
+    ellipse_top = y - _sv(2.0, scale)
+    ellipse_bottom = y + _sv(9.0, scale)
+
+    draw.polygon(
+        [
+            (x, point_y),
+            (x + radius_x - 1, ellipse_top + _sv(2.0, scale)),
+            (x - radius_x + 1, ellipse_top + _sv(2.0, scale)),
+        ],
+        fill=255,
+        outline=0,
+    )
+    draw.ellipse((x - radius_x, ellipse_top, x + radius_x, ellipse_bottom), fill=255, outline=0)
+    draw.line((x, point_y, x + radius_x - 1, ellipse_top + _sv(2.0, scale)), fill=0, width=stroke)
+    draw.line((x, point_y, x - radius_x + 1, ellipse_top + _sv(2.0, scale)), fill=0, width=stroke)
+    draw.arc((x - radius_x, ellipse_top, x + radius_x, ellipse_bottom), start=18, end=162, fill=0, width=stroke)
+    draw.arc((x - radius_x, ellipse_top, x + radius_x, ellipse_bottom), start=198, end=342, fill=0, width=stroke)
 
 
 def draw_heart(draw: ImageDraw.ImageDraw, center: tuple[int, int], scale: float = 1.0) -> None:
