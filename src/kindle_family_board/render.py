@@ -161,6 +161,143 @@ def _sv(value: float, scale: float) -> int:
     return int(round(value * scale))
 
 
+def draw_badge_canvas(draw: ImageDraw.ImageDraw, box: tuple[int, int, int, int]) -> tuple[int, int]:
+    left = box[0] + 6
+    top = box[1] - 12
+    right = left + 88
+    bottom = top + 70
+    draw.rounded_rectangle((left, top + 8, right, bottom), radius=18, fill=255)
+    return left, top
+
+
+def draw_envelope_badge(draw: ImageDraw.ImageDraw, origin: tuple[int, int]) -> None:
+    ox, oy = origin
+    stroke = 3
+    left = ox + 12
+    top = oy + 20
+    right = ox + 70
+    bottom = oy + 62
+
+    letter_left = left + 8
+    letter_top = top - 12
+    letter_right = right - 8
+    letter_bottom = top + 10
+    draw.rounded_rectangle((letter_left, letter_top, letter_right, letter_bottom), radius=4, outline=0, width=stroke)
+    for row in range(3):
+        y = letter_top + 7 + row * 5
+        draw.line((letter_left + 8, y, letter_right - 8 - row * 4, y), fill=0, width=2)
+
+    draw.rounded_rectangle((left, top, right, bottom), radius=4, outline=0, width=stroke)
+    draw.line((left, top, (left + right) / 2, top + 18, right, top), fill=0, width=stroke)
+    draw.line((left, bottom, (left + right) / 2, top + 26, right, bottom), fill=0, width=stroke)
+    draw.line((left, top, left + 19, top + 16), fill=0, width=stroke)
+    draw.line((right, top, right - 19, top + 16), fill=0, width=stroke)
+    draw_heart(draw, ((left + right) // 2, top + 25), 0.75)
+
+
+def draw_book_badge(draw: ImageDraw.ImageDraw, origin: tuple[int, int]) -> None:
+    ox, oy = origin
+    stroke = 3
+    left_page = (ox + 12, oy + 21, ox + 40, oy + 60)
+    right_page = (ox + 40, oy + 21, ox + 68, oy + 60)
+    draw.rounded_rectangle(left_page, radius=5, outline=0, width=stroke)
+    draw.rounded_rectangle(right_page, radius=5, outline=0, width=stroke)
+    draw.line((ox + 40, oy + 21, ox + 40, oy + 60), fill=0, width=stroke)
+    draw.arc((ox + 18, oy + 52, ox + 40, oy + 64), start=180, end=355, fill=0, width=2)
+    draw.arc((ox + 40, oy + 52, ox + 62, oy + 64), start=185, end=360, fill=0, width=2)
+    for row in range(4):
+        y = oy + 28 + row * 7
+        draw.arc((ox + 17, y - 2, ox + 36, y + 4), start=190, end=342, fill=0, width=2)
+        draw.arc((ox + 44, y - 2, ox + 63, y + 4), start=198, end=350, fill=0, width=2)
+
+    block_a = (ox + 52, oy + 43, ox + 74, oy + 65)
+    block_c = (ox + 68, oy + 52, ox + 90, oy + 74)
+    draw.polygon(
+        [
+            (block_a[0], block_a[1]),
+            (block_a[2] - 6, block_a[1] - 4),
+            (block_a[2], block_a[1] + 2),
+            (block_a[2], block_a[3] - 4),
+            (block_a[0] + 6, block_a[3]),
+            (block_a[0], block_a[3] - 6),
+        ],
+        outline=0,
+        fill=255,
+    )
+    draw.line((block_a[0], block_a[1], block_a[2] - 6, block_a[1] - 4, block_a[2], block_a[1] + 2, block_a[2], block_a[3] - 4, block_a[0] + 6, block_a[3], block_a[0], block_a[3] - 6, block_a[0], block_a[1]), fill=0, width=2)
+    draw.line((block_a[0] + 6, block_a[3], block_a[0] + 6, block_a[1] + 6), fill=0, width=2)
+    font = load_font(18, bold=True)
+    draw.text((block_a[0] + 7, block_a[1] + 8), "A", font=font, fill=0)
+
+    draw.polygon(
+        [
+            (block_c[0], block_c[1]),
+            (block_c[2] - 6, block_c[1] - 4),
+            (block_c[2], block_c[1] + 2),
+            (block_c[2], block_c[3] - 4),
+            (block_c[0] + 6, block_c[3]),
+            (block_c[0], block_c[3] - 6),
+        ],
+        outline=0,
+        fill=255,
+    )
+    draw.line((block_c[0], block_c[1], block_c[2] - 6, block_c[1] - 4, block_c[2], block_c[1] + 2, block_c[2], block_c[3] - 4, block_c[0] + 6, block_c[3], block_c[0], block_c[3] - 6, block_c[0], block_c[1]), fill=0, width=2)
+    draw.line((block_c[0] + 6, block_c[3], block_c[0] + 6, block_c[1] + 6), fill=0, width=2)
+    draw.text((block_c[0] + 7, block_c[1] + 8), "C", font=font, fill=0)
+
+
+def draw_speech_badge(draw: ImageDraw.ImageDraw, origin: tuple[int, int]) -> None:
+    ox, oy = origin
+    bubble = (ox + 8, oy + 12, ox + 74, oy + 58)
+    draw.rounded_rectangle(bubble, radius=12, outline=0, width=3)
+    draw.polygon([(ox + 18, oy + 58), (ox + 14, oy + 72), (ox + 30, oy + 60)], fill=255, outline=0)
+    draw.line((ox + 18, oy + 58, ox + 14, oy + 72, ox + 30, oy + 60), fill=0, width=3)
+
+    for col in range(4):
+        for row in range(5):
+            x = ox + 50 + col * 6
+            y = oy + 18 + row * 6
+            draw.ellipse((x, y, x + 1, y + 1), fill=0)
+
+    font = load_font(16, bold=True)
+    draw.text((ox + 18, oy + 18), "HA", font=font, fill=0, stroke_width=1, stroke_fill=255)
+    draw.text((ox + 18, oy + 36), "HA", font=font, fill=0, stroke_width=1, stroke_fill=255)
+
+    face_center = (ox + 72, oy + 56)
+    draw.ellipse((face_center[0] - 14, face_center[1] - 14, face_center[0] + 14, face_center[1] + 14), outline=0, width=3)
+    draw.ellipse((face_center[0] - 6, face_center[1] - 4, face_center[0] - 3, face_center[1] - 1), fill=0)
+    draw.ellipse((face_center[0] + 3, face_center[1] - 4, face_center[0] + 6, face_center[1] - 1), fill=0)
+    draw.arc((face_center[0] - 9, face_center[1] - 2, face_center[0] + 9, face_center[1] + 10), start=15, end=165, fill=0, width=3)
+
+
+def draw_weather_badge_scene(draw: ImageDraw.ImageDraw, origin: tuple[int, int], weather_icon_style: str) -> None:
+    ox, oy = origin
+    draw_condition_icon(draw, (ox + 24, oy + 29), 0, scale=0.9, style=weather_icon_style)
+    draw_condition_icon(draw, (ox + 56, oy + 40), 61, scale=0.95, style=weather_icon_style)
+
+
+def draw_badge_icon_illustrated(
+    draw: ImageDraw.ImageDraw,
+    box: tuple[int, int, int, int],
+    icon_name: str,
+    *,
+    weather_icon_style: str,
+) -> None:
+    origin = draw_badge_canvas(draw, box)
+    if icon_name == "weather":
+        draw_weather_badge_scene(draw, origin, weather_icon_style)
+        return
+    if icon_name == "note":
+        draw_envelope_badge(draw, origin)
+        return
+    if icon_name == "words":
+        draw_book_badge(draw, origin)
+        return
+    if icon_name == "story":
+        draw_speech_badge(draw, origin)
+        return
+
+
 def draw_cloud(draw: ImageDraw.ImageDraw, center: tuple[int, int], scale: float) -> None:
     cx, cy = center
     stroke = max(2, _sv(2.3, scale))
@@ -614,10 +751,20 @@ def draw_badge_icon(draw: ImageDraw.ImageDraw, center: tuple[int, int], icon_nam
         return
 
 
-def draw_corner_badge(draw: ImageDraw.ImageDraw, box: tuple[int, int, int, int], icon_name: str, style: str) -> None:
-    center = (box[0] + 36, box[1] + 8)
-    draw_badge_base(draw, center, style=style)
-    draw_badge_icon(draw, center, icon_name=icon_name)
+def draw_corner_badge(
+    draw: ImageDraw.ImageDraw,
+    box: tuple[int, int, int, int],
+    icon_name: str,
+    style: str,
+    *,
+    weather_icon_style: str,
+) -> None:
+    if style == "legacy":
+        center = (box[0] + 36, box[1] + 8)
+        draw_badge_base(draw, center, style="burst")
+        draw_badge_icon(draw, center, icon_name=icon_name)
+        return
+    draw_badge_icon_illustrated(draw, box, icon_name, weather_icon_style=weather_icon_style)
 
 
 def draw_weather_period(
@@ -701,11 +848,11 @@ def render_board(content: BoardContent, config: BoardConfig, output_path: Path) 
 
     weather_box = (margin, y, width - margin, y + 138)
     draw_card(draw, weather_box, fill=246)
-    draw_corner_badge(draw, weather_box, "weather", config.icon_style)
+    draw_corner_badge(draw, weather_box, "weather", config.icon_style, weather_icon_style=config.weather_icon_style)
     divider_x = (weather_box[0] + weather_box[2]) // 2 + 10
     draw.line((divider_x, weather_box[1] + 28, divider_x, weather_box[3] - 18), fill=210, width=2)
 
-    left_period_box = (weather_box[0] + 92, weather_box[1] + 20, divider_x - 20, weather_box[3] - 14)
+    left_period_box = (weather_box[0] + 108, weather_box[1] + 20, divider_x - 20, weather_box[3] - 14)
     right_period_box = (divider_x + 22, weather_box[1] + 20, weather_box[2] - 20, weather_box[3] - 14)
     draw_weather_period(
         draw,
@@ -735,13 +882,13 @@ def render_board(content: BoardContent, config: BoardConfig, output_path: Path) 
 
     message_box = (margin, y, width - margin, y + 114)
     draw_card(draw, message_box, fill=248)
-    draw_corner_badge(draw, message_box, "note", config.icon_style)
+    draw_corner_badge(draw, message_box, "note", config.icon_style, weather_icon_style=config.weather_icon_style)
     draw_text_block(
         draw,
         text=content.family_message,
-        x=message_box[0] + 84,
+        x=message_box[0] + 102,
         y=message_box[1] + 34,
-        max_width=message_box[2] - message_box[0] - 102,
+        max_width=message_box[2] - message_box[0] - 120,
         max_height=64,
         font=note_font,
         line_gap=7,
@@ -750,23 +897,23 @@ def render_board(content: BoardContent, config: BoardConfig, output_path: Path) 
 
     words_box = (margin, y, width - margin, y + 100)
     draw_card(draw, words_box, fill=245)
-    draw_corner_badge(draw, words_box, "words", config.icon_style)
+    draw_corner_badge(draw, words_box, "words", config.icon_style, weather_icon_style=config.weather_icon_style)
     pill_top = words_box[1] + 28
-    left_pill = (words_box[0] + 96, pill_top, words_box[0] + 288, pill_top + 44)
-    right_pill = (words_box[0] + 308, pill_top, words_box[2] - 18, pill_top + 44)
+    left_pill = (words_box[0] + 116, pill_top, words_box[0] + 298, pill_top + 44)
+    right_pill = (words_box[0] + 314, pill_top, words_box[2] - 18, pill_top + 44)
     draw_word_pill(draw, box=left_pill, text=content.practice_words[0], font=word_font)
     draw_word_pill(draw, box=right_pill, text=content.practice_words[1], font=word_font)
     y = words_box[3] + card_gap
 
     reading_box = (margin, y, width - margin, height - 26)
     draw_card(draw, reading_box, fill=246)
-    draw_corner_badge(draw, reading_box, "story", config.icon_style)
+    draw_corner_badge(draw, reading_box, "story", config.icon_style, weather_icon_style=config.weather_icon_style)
     title_bottom = draw_text_block(
         draw,
         text=content.reading.title,
-        x=reading_box[0] + 88,
+        x=reading_box[0] + 108,
         y=reading_box[1] + 30,
-        max_width=reading_box[2] - reading_box[0] - 112,
+        max_width=reading_box[2] - reading_box[0] - 132,
         max_height=66,
         font=reading_title_font,
         line_gap=6,
