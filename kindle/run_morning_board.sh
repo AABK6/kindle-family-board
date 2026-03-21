@@ -17,6 +17,7 @@ if [ -n "$HOLD_SECONDS_OVERRIDE" ]; then
 fi
 
 HOLD_SECONDS="${KFB_MORNING_HOLD_SECONDS:-10800}"
+EXPECTED_RENDER_DATE="${KFB_EXPECTED_RENDER_DATE:-$(date +%F)}"
 
 mkdir -p "$ROOT_DIR/cache" "$ROOT_DIR/linkss-state"
 
@@ -24,7 +25,8 @@ log() {
   printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >> "$LOG_FILE"
 }
 
-KFB_ENV_FILE="$ENV_FILE" "$ROOT_DIR/fetch_and_display.sh" >> "$LOG_FILE" 2>&1
+log "starting morning board expected_render_date=$EXPECTED_RENDER_DATE"
+KFB_ENV_FILE="$ENV_FILE" KFB_EXPECTED_RENDER_DATE="$EXPECTED_RENDER_DATE" "$ROOT_DIR/fetch_and_display.sh" >> "$LOG_FILE" 2>&1
 log "fetch_and_display completed"
 
 if [ ! -f "$ROOT_DIR/cache/latest.png" ]; then

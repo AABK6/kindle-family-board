@@ -16,8 +16,10 @@ CURL_BIN="${CURL_BIN:-/mnt/us/usbnet/bin/curl}"
 EIPS_BIN="${EIPS_BIN:-/usr/sbin/eips}"
 FETCH_RETRY_COUNT="${KFB_FETCH_RETRY_COUNT:-6}"
 FETCH_RETRY_DELAY="${KFB_FETCH_RETRY_DELAY:-10}"
+EXPECTED_RENDER_DATE="${KFB_EXPECTED_RENDER_DATE:-$(date +%F)}"
 TMP_IMAGE="$CACHE_DIR/latest.tmp.png"
 FINAL_IMAGE="$CACHE_DIR/latest.png"
+JSON_TMP="$CACHE_DIR/latest.tmp.json"
 LOG_FILE="$CACHE_DIR/refresh.log"
 
 mkdir -p "$CACHE_DIR"
@@ -41,28 +43,48 @@ if [ ! -x "$EIPS_BIN" ]; then
   exit 1
 fi
 
-REQUEST_URL="$BOARD_URL"
-case "$REQUEST_URL" in
-  *\?*)
-    REQUEST_URL="${REQUEST_URL}&_ts=$(date +%Y%m%d%H%M%S)"
-    ;;
-  *)
-    REQUEST_URL="${REQUEST_URL}?_ts=$(date +%Y%m%d%H%M%S)"
-    ;;
-esac
+with_cache_bust() {
+  case "$1" in
+    *\?*)
+      printf '%s&_ts=%s\n' "$1" "$(date +%Y%m%d%H%M%S)"
+      ;;
+    *)
+      printf '%s?_ts=%s\n' "$1" "$(date +%Y%m%d%H%M%S)"
+      ;;
+  esac
+}
+
+BASE_URL="${BOARD_URL%/*}"
+DATED_IMAGE_PATH="board-$EXPECTED_RENDER_DATE.png"
+
+extract_render_date() {
+  sed -n 's/.*"render_date"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$1" | head -n 1
+}
+
+render_date_hint() {
+  JSON_URL="$(with_cache_bust "$BASE_URL/latest.json")"
+  if "$CURL_BIN" --fail --silent --show-error --location "$JSON_URL" --output "$JSON_TMP" 2>>"$LOG_FILE"; then
+    extract_render_date "$JSON_TMP"
+  else
+    printf '%s\n' "unknown"
+  fi
+  rm -f "$JSON_TMP"
+}
 
 download_ok=0
 attempt=1
 while [ "$attempt" -le "$FETCH_RETRY_COUNT" ]; do
+  REQUEST_URL="$(with_cache_bust "$BASE_URL/$DATED_IMAGE_PATH")"
   if "$CURL_BIN" --fail --silent --show-error --location "$REQUEST_URL" --output "$TMP_IMAGE" 2>>"$LOG_FILE"; then
     mv "$TMP_IMAGE" "$FINAL_IMAGE"
-    log "downloaded $REQUEST_URL on attempt $attempt/$FETCH_RETRY_COUNT"
+    log "downloaded dated board asset=$DATED_IMAGE_PATH expected=$EXPECTED_RENDER_DATE url=$REQUEST_URL on attempt $attempt/$FETCH_RETRY_COUNT"
     download_ok=1
     break
   fi
 
   rm -f "$TMP_IMAGE"
-  log "download attempt $attempt/$FETCH_RETRY_COUNT failed"
+  render_date="$(render_date_hint)"
+  log "download attempt $attempt/$FETCH_RETRY_COUNT failed for asset=$DATED_IMAGE_PATH url=$REQUEST_URL latest_metadata_render_date=$render_date"
   if [ "$attempt" -lt "$FETCH_RETRY_COUNT" ]; then
     sleep "$FETCH_RETRY_DELAY"
   fi

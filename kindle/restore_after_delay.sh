@@ -6,6 +6,8 @@ DELAY_SECONDS="${2:-}"
 TOKEN="${KFB_RESTORE_TOKEN:-}"
 TOKEN_FILE="$ROOT_DIR/linkss-state/restore.token"
 LOG_FILE="$ROOT_DIR/cache/restore.log"
+FRAMEWORK_INIT="/etc/init.d/framework"
+FRAMEWORK_RESET_SETTLE_SECONDS="${KFB_FRAMEWORK_RESET_SETTLE_SECONDS:-15}"
 
 if [ -z "$DELAY_SECONDS" ]; then
   echo "usage: $0 <root-dir> <delay-seconds>" >&2
@@ -38,6 +40,22 @@ run_photo_screensaver_cycle() {
   sleep 3
   powerd_test -p >/dev/null 2>&1 || true
   log "completed photo screensaver cycle"
+}
+
+reset_framework_if_available() {
+  if [ ! -x "$FRAMEWORK_INIT" ]; then
+    log "framework init script missing, skipping reset"
+    return 0
+  fi
+
+  if "$FRAMEWORK_INIT" reset >/dev/null 2>&1; then
+    log "framework reset completed"
+    sleep "$FRAMEWORK_RESET_SETTLE_SECONDS"
+    return 0
+  fi
+
+  log "framework reset failed"
+  return 1
 }
 
 token_matches() {
@@ -103,6 +121,7 @@ fi
 STATUS_BEFORE="$(power_status)"
 "$ROOT_DIR/restore_screensavers.sh" "$ROOT_DIR" >> "$LOG_FILE" 2>&1 || true
 log "restore invoked status_before=${STATUS_BEFORE:-unknown}"
+reset_framework_if_available || true
 if echo "$STATUS_BEFORE" | grep -qi "screen saver"; then
   run_photo_screensaver_cycle
 fi

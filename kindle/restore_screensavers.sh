@@ -8,6 +8,8 @@ ACTIVE_DIR="${KFB_LINKSS_ACTIVE_DIR:-/opt/amazon/screen_saver/600x800}"
 STATE_DIR="$ROOT_DIR/linkss-state"
 LOG_FILE="$ROOT_DIR/cache/linkss.log"
 CONVERT_BIN="$LINKSS_DIR/bin/convert"
+LINKSS_BIN="$LINKSS_DIR/bin/linkss"
+UNLINKSS_BIN="$LINKSS_DIR/bin/unlinkss"
 TMP_REFRESH_IMAGE="$ROOT_DIR/cache/restore-visible.png"
 BOARD_IMAGE_CACHE="$ROOT_DIR/cache/latest.png"
 NORMAL_SCREENSAVER_DIR="${KFB_NORMAL_SCREENSAVER_DIR:-$ROOT_DIR/normal-screensavers}"
@@ -16,6 +18,37 @@ mkdir -p "$ROOT_DIR/cache"
 
 log() {
   printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >> "$LOG_FILE"
+}
+
+normalize_png_file() {
+  source_path="$1"
+  tmp_path="$ROOT_DIR/cache/normalize-$(basename "$source_path").tmp"
+
+  [ -x "$CONVERT_BIN" ] || return 0
+  [ -f "$source_path" ] || return 0
+
+  rm -f "$tmp_path"
+  if "$CONVERT_BIN" "$source_path" -colorspace sRGB "PNG8:$tmp_path" >/dev/null 2>&1; then
+    if mv -f "$tmp_path" "$source_path" >/dev/null 2>&1; then
+      chmod 644 "$source_path" 2>/dev/null || true
+      log "normalized png for framework loader path=$source_path"
+      return 0
+    fi
+  fi
+
+  rm -f "$tmp_path"
+  log "png normalization failed path=$source_path"
+  return 1
+}
+
+normalize_png_dir() {
+  dir_path="$1"
+  [ -d "$dir_path" ] || return 0
+
+  for png_path in "$dir_path"/*.png "$dir_path"/*.PNG; do
+    [ -f "$png_path" ] || continue
+    normalize_png_file "$png_path" || true
+  done
 }
 
 first_existing() {
@@ -80,7 +113,31 @@ if [ -d "$STATE_DIR/original_screensavers" ]; then
   done
 fi
 
+normalize_png_dir "$NORMAL_SCREENSAVER_DIR"
+normalize_png_dir "$SCREENSAVER_DIR"
+if [ "$TARGET_DIR" != "$SCREENSAVER_DIR" ]; then
+  normalize_png_dir "$TARGET_DIR"
+fi
+
 log "restored normal screensaver mode"
+if [ -x "$LINKSS_BIN" ]; then
+  if [ -x "$UNLINKSS_BIN" ]; then
+    if "$UNLINKSS_BIN" >> "$LOG_FILE" 2>&1; then
+      log "tore down regular linkss state"
+    else
+      log "regular linkss teardown failed"
+    fi
+  fi
+
+  if "$LINKSS_BIN" >> "$LOG_FILE" 2>&1; then
+    log "reinitialized regular linkss state"
+  else
+    log "regular linkss reinitialization failed"
+  fi
+else
+  log "regular linkss binary missing, skipping reinitialization"
+fi
+
 POWERD_STATUS="$(lipc-get-prop com.lab126.powerd status 2>/dev/null || true)"
 RESTORE_IMAGE="$(prepare_refresh_image || true)"
 if [ -n "$RESTORE_IMAGE" ]; then

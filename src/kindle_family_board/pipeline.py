@@ -58,16 +58,26 @@ def generate_board(config: BoardConfig, target_date: date | None = None) -> tupl
     config.output_dir.mkdir(parents=True, exist_ok=True)
     latest_image = config.output_dir / "latest.png"
     latest_manifest = config.output_dir / "latest.json"
-    dated_image = config.output_dir / f"board-{target_date.isoformat()}.png"
-    dated_manifest = config.output_dir / f"board-{target_date.isoformat()}.json"
+    dated_image_name = f"board-{target_date.isoformat()}.png"
+    dated_manifest_name = f"board-{target_date.isoformat()}.json"
+    dated_image = config.output_dir / dated_image_name
+    dated_manifest = config.output_dir / dated_manifest_name
 
     render_board(content, config, latest_image)
     copy2(latest_image, dated_image)
+
+    dated_board_url = config.board_url.replace("/latest.png", f"/{dated_image_name}")
+    dated_manifest_url = config.board_url.replace("/latest.png", f"/{dated_manifest_name}")
 
     manifest = {
         "render_date": target_date.isoformat(),
         "location_name": config.location_name,
         "board_url": config.board_url,
+        "latest_board_url": config.board_url,
+        "dated_board_filename": dated_image_name,
+        "dated_board_url": dated_board_url,
+        "dated_manifest_filename": dated_manifest_name,
+        "dated_manifest_url": dated_manifest_url,
         "reading_error": reading_error,
         "content": asdict(content),
     }

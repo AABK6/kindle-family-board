@@ -8,18 +8,19 @@ Current production behavior:
 - weather defaults to Wassenaar, NL
 - the reading block comes from a local carousel of jokes and fun facts
 - the visual style uses `burst` corner icons
-- GitHub Pages hosts the daily `latest.png`
-- at `07:00`, the Kindle fetches and shows the board
+- GitHub Pages hosts the daily board as both `latest.png` and immutable dated files like `board-YYYY-MM-DD.png`
+- at `07:00`, the Kindle wakes and shows the board
 - during the morning hold window, the board remains visible even after auto-sleep
 - after the hold window, the Kindle switches back to a curated family photo screensaver set
+- when the user later presses the power button for sleep, the Kindle now stays on a real photo instead of falling back to a white screen
 
-As of March 18, 2026, the timed wake path, the board-on-sleep path, and the restore-to-photos path have all been live-tested on the actual device.
+As of March 21, 2026, the timed wake path, the board-on-sleep path, the restore-to-photos path, and the later manual sleep path have all been live-tested on the actual device.
 
 ## Architecture
 
 The implementation is intentionally split in two:
 
-- off-device Python renders the board and publishes `latest.png` plus `latest.json`
+- off-device Python renders the board and publishes `latest.png`, `latest.json`, and dated assets
 - the Kindle only downloads, displays, persists, and later restores screensavers
 
 That keeps the Kindle-side logic small and gives the host side full freedom for layout, weather formatting, and reading-content curation.
@@ -27,6 +28,7 @@ That keeps the Kindle-side logic small and gives the host side full freedom for 
 ## Repo layout
 
 - [README.md](C:\Users\aabec\Scripts\kindle-family-board\README.md): operational overview
+- [ORCHESTRATOR.md](C:\Users\aabec\Scripts\kindle-family-board\ORCHESTRATOR.md): durable living memory for future orchestrator work
 - [docs/design-plan.md](C:\Users\aabec\Scripts\kindle-family-board\docs\design-plan.md): architecture and validation notes
 - [scripts/generate_board.py](C:\Users\aabec\Scripts\kindle-family-board\scripts\generate_board.py): renders `output/latest.png`
 - [scripts/build_site.py](C:\Users\aabec\Scripts\kindle-family-board\scripts\build_site.py): builds the static `site/` output
@@ -70,14 +72,16 @@ Output lands in:
 
 - [output/latest.png](C:\Users\aabec\Scripts\kindle-family-board\output\latest.png)
 - [output/latest.json](C:\Users\aabec\Scripts\kindle-family-board\output\latest.json)
+- [output/board-YYYY-MM-DD.png](C:\Users\aabec\Scripts\kindle-family-board\output)
+- [output/board-YYYY-MM-DD.json](C:\Users\aabec\Scripts\kindle-family-board\output)
 
 ## Publish path
 
 The primary hosting path is GitHub Pages.
 
-- [publish-board.yml](C:\Users\aabec\Scripts\kindle-family-board\.github\workflows\publish-board.yml) runs at minutes `07, 22, 37, 52`
-- the workflow republishes during the local morning window in `Europe/Amsterdam` until `latest.json` is current for the day
-- the stable image URL is [latest.png](https://aabk6.github.io/kindle-family-board/latest.png)
+- [publish-board.yml](C:\Users\aabec\Scripts\kindle-family-board\.github\workflows\publish-board.yml) runs four times per hour in a morning-relevant UTC window
+- the workflow republishes only during the local morning window in `Europe/Amsterdam` and skips once `latest.json` is already current for the day
+- the stable image URLs are [latest.png](https://aabk6.github.io/kindle-family-board/latest.png) and [board-YYYY-MM-DD.png](https://aabk6.github.io/kindle-family-board/board-YYYY-MM-DD.png)
 
 Manual publish fallback:
 
@@ -119,10 +123,10 @@ The production flow is:
 
 1. GitHub Pages publishes the daily board image.
 2. The Kindle cron entry in `/etc/crontab/root` runs [kindle/run_morning_board.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\run_morning_board.sh) at `07:00`.
-3. `run_morning_board.sh` downloads and displays the board, then arms the board screensaver watchdog.
+3. `run_morning_board.sh` downloads the dated board image for the expected day, displays it, then arms the board screensaver watchdog.
 4. During the hold window, the Kindle may auto-sleep, but the board is repainted onto the screensaver event so it remains visible.
 5. After `KFB_MORNING_HOLD_SECONDS`, [kindle/restore_after_delay.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\restore_after_delay.sh) calls [kindle/restore_screensavers.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\restore_screensavers.sh).
-6. The restore path re-installs the canonical photo set from `/mnt/us/kindle-family-board/normal-screensavers` and triggers a one-shot repaint so the visible sleeping cover becomes a family photo again.
+6. The restore path re-installs the canonical photo set from `/mnt/us/kindle-family-board/normal-screensavers`, reinitializes `linkss`, resets the framework, and triggers a one-shot repaint so the visible sleeping cover becomes a family photo again.
 
 This is deliberate: the project no longer trusts whatever files happen to be in `linkss/screensavers`. The canonical normal screensaver set lives under the project root on the Kindle.
 
@@ -174,4 +178,5 @@ The helper scans the whole local `/24`, not just low addresses. If your Kindle h
 - The reading card comes from a local carousel of curated French jokes and fun facts.
 - The carousel is shuffled by cycle and avoids showing the same reading twice in a row, even when it starts a new loop.
 - The family message and the younger child words are pseudo-random by date: stable for a given day, varied across days.
-- The exact timed wake has been proven on this Kindle, but long multi-day battery endurance is still an operational question. If you want maximum reliability, keep it charged.
+- The exact timed wake has been proven on this Kindle, and the manual power-button sleep path now returns a real photo instead of a white screen.
+- Long multi-day battery endurance is still an operational question. If you want maximum reliability, keep it charged.

@@ -21,6 +21,8 @@ A normal Python environment generates:
 
 - `latest.png`: the final board image
 - `latest.json`: the manifest of the exact content used
+- `board-YYYY-MM-DD.png`: the immutable dated board asset for the day
+- `board-YYYY-MM-DD.json`: the dated manifest
 
 The generator:
 
@@ -36,21 +38,22 @@ The reading carousel is deterministic by date:
 - no entry repeats until the whole set has been consumed
 - the first entry of a new cycle is forced not to repeat the last entry of the previous cycle
 
-This keeps weather formatting, typography, and content curation off the Kindle.
+The manifest now also exposes the dated board URL metadata so the Kindle can request the immutable asset directly.
 
 ### 2. GitHub Pages as the production host
 
 The primary hosting path is:
 
-- hourly GitHub Actions schedule
-- local-hour gate at `07` in `Europe/Amsterdam`
+- GitHub Actions schedule in a morning-relevant UTC window
+- local-hour gate at `06|07|08|09` in `Europe/Amsterdam`
 - deploy to GitHub Pages
 
-Stable output URL:
+Stable output URLs:
 
 - [latest.png](https://aabk6.github.io/kindle-family-board/latest.png)
+- [board-YYYY-MM-DD.png](https://aabk6.github.io/kindle-family-board/board-YYYY-MM-DD.png)
 
-This means the Kindle only needs a stable URL. The PC no longer needs to act as the normal morning web server.
+This means the Kindle can still fetch a stable URL, but it no longer has to depend on `latest.png` for correctness at wake time.
 
 ### 3. Kindle-side morning orchestrator
 
@@ -61,7 +64,7 @@ The Kindle runs:
 
 That script:
 
-1. downloads `latest.png`
+1. downloads the dated board image for the expected render date
 2. displays it with `eips`
 3. arms a board screensaver watchdog
 4. arms a delayed restore job
@@ -94,8 +97,11 @@ The restore path is:
 
 1. stop the board watchdog
 2. re-install the canonical photo set into `linkss/screensavers`
-3. copy the chosen photo into the project cache
-4. repaint the visible sleeping cover so the user sees a family photo again
+3. normalize the restored PNGs to PNG8 colormap
+4. reinitialize `linkss`
+5. reset the framework
+6. copy the chosen photo into the project cache
+7. repaint the visible sleeping cover so the user sees a family photo again
 
 Relevant scripts:
 
@@ -104,7 +110,7 @@ Relevant scripts:
 - [install_normal_screensavers.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\install_normal_screensavers.sh)
 - [one_shot_screensaver_refresh.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\one_shot_screensaver_refresh.sh)
 
-This replaced the older, fragile assumption that the “normal” screensaver set could be inferred from whatever happened to be sitting inside `linkss/screensavers`.
+This replaced the older, fragile assumption that the "normal" screensaver set could be inferred from whatever happened to be sitting inside `linkss/screensavers`.
 
 ## Canonical family photo pipeline
 
@@ -141,13 +147,14 @@ That gives the project a practical self-healing boot path:
 
 ## Validation status on the live device
 
-Verified on the actual Kindle as of March 18, 2026:
+Verified on the actual Kindle as of March 21, 2026:
 
 - Wi-Fi SSH works for maintenance
 - the Kindle can wake on a timed test while unplugged
 - the board can display on wake
 - the board remains visible after auto-sleep during the morning hold window
 - the restore path can return the sleeping cover to the family photo set
+- the later manual power-button sleep path now shows a photo instead of a white screen
 
 The restore behavior was verified with the production path compressed to a `60` second hold:
 
@@ -155,6 +162,7 @@ The restore behavior was verified with the production path compressed to a `60` 
 - forced sleep occurred
 - delayed restore fired
 - sleeping cover switched from board to family photo
+- a later real button sleep still showed a photo
 
 ## Operational caveats
 
@@ -164,12 +172,12 @@ Things that are proven:
 - morning board rendering works
 - board persistence across sleep works
 - restore to photo screensavers works
+- the real button-triggered sleep path now stays on a photo
 
 Things still treated cautiously:
 
 - true long-duration battery endurance over many days is not yet characterized
 - SSH is only available when `USBNetwork` is enabled and the Kindle is awake or Wi-Fi-active
-- the live validation for restore used a compressed hold window rather than literally waiting 3 hours each time
 
 That said, the compressed test uses the same production scripts and code path, so it is a meaningful validation.
 
@@ -180,6 +188,6 @@ Operationally, the system is now in a good state for daily use:
 - keep Wi-Fi on
 - keep the device reasonably charged
 - leave `USBNetwork` off unless maintenance is needed
-- treat the canonical family photo set under the project root as the only source of truth for “normal” screensavers
+- treat the canonical family photo set under the project root as the only source of truth for "normal" screensavers
 
 If the photo set changes, regenerate it locally and redeploy it. Do not hand-edit `linkss/screensavers` on the device and assume the project can infer the intended baseline.

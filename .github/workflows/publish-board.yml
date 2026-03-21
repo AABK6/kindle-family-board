@@ -3,7 +3,7 @@ name: Publish Board
 on:
   workflow_dispatch:
   schedule:
-    - cron: "7,22,37,52 * * * *"
+    - cron: "7,22,37,52 4-8 * * *"
 
 permissions:
   contents: read
