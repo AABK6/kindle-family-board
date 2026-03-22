@@ -55,6 +55,8 @@ Stable output URLs:
 
 This means the Kindle can still fetch a stable URL, but it no longer has to depend on `latest.png` for correctness at wake time.
 
+The schedule was intentionally narrowed so the workflow no longer runs all day. That keeps a morning retry window without burning scheduled runs outside the useful period.
+
 ### 3. Kindle-side morning orchestrator
 
 The Kindle runs:
@@ -68,6 +70,8 @@ That script:
 2. displays it with `eips`
 3. arms a board screensaver watchdog
 4. arms a delayed restore job
+
+There is also a manual KUAL action that uses the same fetch/display runtime. It is backgrounded with a short delay so KUAL closes before the board redraws.
 
 The delayed restore window is controlled by `KFB_MORNING_HOLD_SECONDS`, currently `10800` seconds.
 
@@ -112,6 +116,8 @@ Relevant scripts:
 
 This replaced the older, fragile assumption that the "normal" screensaver set could be inferred from whatever happened to be sitting inside `linkss/screensavers`.
 
+The restore handoff now does more than copy files: it reinitializes `linkss` and resets the framework so the later manual sleep path stays on a real photo instead of going white.
+
 ## Canonical family photo pipeline
 
 The current photo screensaver set is hand-curated.
@@ -130,6 +136,16 @@ Local outputs:
 
 This is intentionally not a generic automatic cropper. The current script contains crop presets for the current four family images.
 
+## Story Source
+
+The story and fact carousel is based on [docs/stories.txt](C:\Users\aabec\Scripts\kindle-family-board\docs\stories.txt).
+
+Current rule:
+
+- `data/reading_carousel.md` must match `docs/stories.txt` exactly for the curated entries
+- duplicates in the source are preserved
+- only the parser-friendly Markdown structure should remain stable
+
 ## Reboot self-heal
 
 Cron needs extra care on this Kindle 4.
@@ -147,7 +163,7 @@ That gives the project a practical self-healing boot path:
 
 ## Validation status on the live device
 
-Verified on the actual Kindle as of March 21, 2026:
+Verified on the actual Kindle as of March 22, 2026:
 
 - Wi-Fi SSH works for maintenance
 - the Kindle can wake on a timed test while unplugged
@@ -155,6 +171,7 @@ Verified on the actual Kindle as of March 21, 2026:
 - the board remains visible after auto-sleep during the morning hold window
 - the restore path can return the sleeping cover to the family photo set
 - the later manual power-button sleep path now shows a photo instead of a white screen
+- the manual KUAL fetch action can display today's board without bouncing back to KUAL
 
 The restore behavior was verified with the production path compressed to a `60` second hold:
 
@@ -173,11 +190,13 @@ Things that are proven:
 - board persistence across sleep works
 - restore to photo screensavers works
 - the real button-triggered sleep path now stays on a photo
+- the manual KUAL fetch action stays on the board
 
 Things still treated cautiously:
 
 - true long-duration battery endurance over many days is not yet characterized
 - SSH is only available when `USBNetwork` is enabled and the Kindle is awake or Wi-Fi-active
+- the raw Kindle shell `date` output can still look UTC-like unless the project timezone is forced, even though the scheduler/runtime path is correct
 
 That said, the compressed test uses the same production scripts and code path, so it is a meaningful validation.
 

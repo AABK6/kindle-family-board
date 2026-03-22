@@ -1,0 +1,19 @@
+{
+	"items": [
+	{
+		"name": "Family Board",
+		"priority": 1,
+		"items": [
+		{
+			"name": "Fetch and display today's board",
+			"action": "./bin/familyboard.sh",
+			"params": "fetch_today",
+			"exitmenu": true,
+			"refresh": false,
+			"status": false,
+			"internal": "status Fetch and display today's family board"
+		}
+		]
+	}
+	]
+}

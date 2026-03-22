@@ -4,6 +4,9 @@ import argparse
 import os
 from pathlib import Path
 import sys
+from importlib import resources
+
+import tzdata
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -64,6 +67,10 @@ def main() -> int:
     screensaver_name = os.getenv("KFB_LINKSS_SCREENSAVER_NAME", "bg_xsmall_ss00.png")
     wake_target_hour = os.getenv("KFB_WAKE_TARGET_HOUR", "7")
     wake_target_minute = os.getenv("KFB_WAKE_TARGET_MINUTE", "0")
+    runtime_tz = os.getenv("KFB_RUNTIME_TZ", "CET-1CEST,M3.5.0,M10.5.0/3")
+    timezone_dir = f"{args.remote_root.rstrip('/')}/timezone"
+    kual_familyboard_dir = "/mnt/us/extensions/familyboard"
+    kual_familyboard_bin_dir = f"{kual_familyboard_dir}/bin"
 
     client, auth = connect(host=args.host)
     try:
@@ -71,6 +78,12 @@ def main() -> int:
         code, _, err = exec_command(client, f"mkdir -p {remote_root}/cache")
         if code != 0:
             raise RuntimeError(err or "Failed to create remote directory.")
+        code, _, err = exec_command(client, f"mkdir -p {timezone_dir}")
+        if code != 0:
+            raise RuntimeError(err or "Failed to create remote timezone directory.")
+        code, _, err = exec_command(client, f"mkdir -p {kual_familyboard_bin_dir}")
+        if code != 0:
+            raise RuntimeError(err or "Failed to create KUAL extension directory.")
 
         sftp = client.open_sftp()
         try:
@@ -91,6 +104,9 @@ def main() -> int:
             upload_file(sftp, REPO_ROOT / "kindle" / "stop_board_watchdog.sh", f"{remote_root}/stop_board_watchdog.sh")
             upload_file(sftp, REPO_ROOT / "kindle" / "one_shot_screensaver_refresh.sh", f"{remote_root}/one_shot_screensaver_refresh.sh")
             upload_file(sftp, REPO_ROOT / "kindle" / "install_normal_screensavers.sh", f"{remote_root}/install_normal_screensavers.sh")
+            upload_file(sftp, REPO_ROOT / "kindle" / "familyboard_kual.sh", f"{kual_familyboard_bin_dir}/familyboard.sh")
+            upload_file(sftp, REPO_ROOT / "kindle" / "kual" / "familyboard" / "config.xml", f"{kual_familyboard_dir}/config.xml")
+            upload_file(sftp, REPO_ROOT / "kindle" / "kual" / "familyboard" / "menu.json", f"{kual_familyboard_dir}/menu.json")
 
             board_env = "\n".join(
                 [
@@ -101,6 +117,7 @@ def main() -> int:
                     f"export KFB_NORMAL_SCREENSAVER_DIR={remote_root}/normal-screensavers",
                     f"export KFB_WAKE_TARGET_HOUR={wake_target_hour}",
                     f"export KFB_WAKE_TARGET_MINUTE={wake_target_minute}",
+                    f"export KFB_RUNTIME_TZ={runtime_tz}",
                     "export CURL_BIN=/mnt/us/usbnet/bin/curl",
                     "export EIPS_BIN=/usr/sbin/eips",
                     "",
@@ -109,6 +126,13 @@ def main() -> int:
             remote_env_path = f"{remote_root}/board.env"
             with sftp.file(remote_env_path, "w") as remote_file:
                 remote_file.write(board_env)
+            with sftp.file(f"{kual_familyboard_dir}/familyboard.env", "w") as remote_file:
+                remote_file.write(f"export KFB_ROOT_DIR={remote_root}\n")
+
+            local_timezone_file = Path(str(resources.files("tzdata").joinpath("zoneinfo", "Europe", "Amsterdam")))
+            upload_file(sftp, local_timezone_file, f"{timezone_dir}/Europe-Amsterdam.tz")
+            with sftp.file(f"{timezone_dir}/TZ.posix", "w") as remote_file:
+                remote_file.write(f"{runtime_tz}\n")
 
             if args.upload_current_image:
                 local_image = REPO_ROOT / "output" / "latest.png"
@@ -141,7 +165,8 @@ def main() -> int:
             f"{remote_root}/stop_restore_after_delay.sh "
             f"{remote_root}/board_screensaver_watchdog.sh {remote_root}/start_board_watchdog.sh "
             f"{remote_root}/stop_board_watchdog.sh {remote_root}/one_shot_screensaver_refresh.sh "
-            f"{remote_root}/install_normal_screensavers.sh"
+            f"{remote_root}/install_normal_screensavers.sh "
+            f"{kual_familyboard_bin_dir}/familyboard.sh"
         )
         code, _, err = exec_command(client, chmod_cmd)
         if code != 0:

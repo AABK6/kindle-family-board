@@ -3,6 +3,16 @@ set -eu
 
 ROOT_DIR="/mnt/us/kindle-family-board"
 LOG_FILE="$ROOT_DIR/cache/linkss-emergency.log"
+ENV_FILE="${KFB_ENV_FILE:-$ROOT_DIR/board.env}"
+
+if [ -f "$ENV_FILE" ]; then
+  set -a
+  . "$ENV_FILE"
+  set +a
+fi
+
+RUNTIME_TZ="${KFB_RUNTIME_TZ:-CET-1CEST,M3.5.0,M10.5.0/3}"
+export TZ="$RUNTIME_TZ"
 
 mkdir -p "$ROOT_DIR/cache"
 
@@ -25,4 +35,3 @@ fi
 
 log "linkss binary missing"
 exit 0
-

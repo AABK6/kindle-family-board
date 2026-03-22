@@ -13,8 +13,9 @@ Current production behavior:
 - during the morning hold window, the board remains visible even after auto-sleep
 - after the hold window, the Kindle switches back to a curated family photo screensaver set
 - when the user later presses the power button for sleep, the Kindle now stays on a real photo instead of falling back to a white screen
+- KUAL exposes a manual `Family Board` action that fetches and displays today's board on demand
 
-As of March 21, 2026, the timed wake path, the board-on-sleep path, the restore-to-photos path, and the later manual sleep path have all been live-tested on the actual device.
+As of March 22, 2026, the timed wake path, the board-on-sleep path, the restore-to-photos path, the later manual sleep path, and the manual KUAL fetch path have all been live-tested on the actual device.
 
 ## Architecture
 
@@ -30,6 +31,7 @@ That keeps the Kindle-side logic small and gives the host side full freedom for 
 - [README.md](C:\Users\aabec\Scripts\kindle-family-board\README.md): operational overview
 - [ORCHESTRATOR.md](C:\Users\aabec\Scripts\kindle-family-board\ORCHESTRATOR.md): durable living memory for future orchestrator work
 - [docs/design-plan.md](C:\Users\aabec\Scripts\kindle-family-board\docs\design-plan.md): architecture and validation notes
+- [docs/stories.txt](C:\Users\aabec\Scripts\kindle-family-board\docs\stories.txt): original stories source for the carousel
 - [scripts/generate_board.py](C:\Users\aabec\Scripts\kindle-family-board\scripts\generate_board.py): renders `output/latest.png`
 - [scripts/build_site.py](C:\Users\aabec\Scripts\kindle-family-board\scripts\build_site.py): builds the static `site/` output
 - [scripts/publish_gh_pages.py](C:\Users\aabec\Scripts\kindle-family-board\scripts\publish_gh_pages.py): manual Pages publish helper
@@ -42,6 +44,7 @@ That keeps the Kindle-side logic small and gives the host side full freedom for 
 - [kindle/install_normal_screensavers.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\install_normal_screensavers.sh): makes the curated photo set canonical on the Kindle
 - [kindle/boot_reseed.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\boot_reseed.sh): re-installs the Kindle cron entry after reboot
 - [kindle/linkss_emergency.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\linkss_emergency.sh): hooks the `linkss` emergency path so cron re-seeding happens automatically at boot
+- [kindle/familyboard_kual.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\familyboard_kual.sh): manual KUAL launcher for today's board
 - [data/kind_messages.txt](C:\Users\aabec\Scripts\kindle-family-board\data\kind_messages.txt): family aphorisms and sweet messages
 - [data/easy_words.txt](C:\Users\aabec\Scripts\kindle-family-board\data\easy_words.txt): reading words for the younger child
 - [data/reading_carousel.md](C:\Users\aabec\Scripts\kindle-family-board\data\reading_carousel.md): rotating jokes and fun facts for the older child
@@ -55,6 +58,8 @@ That keeps the Kindle-side logic small and gives the host side full freedom for 
 - `KFB_ICON_STYLE=burst`
 - `KFB_MORNING_HOLD_SECONDS=10800`
 - `KFB_BOARD_URL=https://aabk6.github.io/kindle-family-board/latest.png`
+
+The scheduler/runtime path on the Kindle uses the project timezone explicitly. The raw shell `date` output on the device can still look UTC-like unless the project timezone is forced, but the morning scheduler path is the reliable one.
 
 The board content is French-first. The weather block shows only morning and afternoon icon, temperature, and rain chance.
 
@@ -127,6 +132,7 @@ The production flow is:
 4. During the hold window, the Kindle may auto-sleep, but the board is repainted onto the screensaver event so it remains visible.
 5. After `KFB_MORNING_HOLD_SECONDS`, [kindle/restore_after_delay.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\restore_after_delay.sh) calls [kindle/restore_screensavers.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\restore_screensavers.sh).
 6. The restore path re-installs the canonical photo set from `/mnt/us/kindle-family-board/normal-screensavers`, reinitializes `linkss`, resets the framework, and triggers a one-shot repaint so the visible sleeping cover becomes a family photo again.
+7. The KUAL menu entry calls the same board fetch/display runtime, but runs it in the background so KUAL does not repaint over the board.
 
 This is deliberate: the project no longer trusts whatever files happen to be in `linkss/screensavers`. The canonical normal screensaver set lives under the project root on the Kindle.
 
@@ -136,6 +142,7 @@ Kindle cron state is not durable enough to trust blindly after reboot, so the re
 
 - [kindle/boot_reseed.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\boot_reseed.sh) rewrites `/etc/crontab/root`
 - [kindle/linkss_emergency.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\linkss_emergency.sh) runs through the `linkss` emergency hook and calls `boot_reseed.sh`
+- [kindle/familyboard_kual.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\familyboard_kual.sh) is the manual KUAL entrypoint for today's board and delays its redraw so the menu closes first
 
 In practice, that means the `07:00` cron job gets re-seeded automatically after boot.
 
@@ -179,4 +186,5 @@ The helper scans the whole local `/24`, not just low addresses. If your Kindle h
 - The carousel is shuffled by cycle and avoids showing the same reading twice in a row, even when it starts a new loop.
 - The family message and the younger child words are pseudo-random by date: stable for a given day, varied across days.
 - The exact timed wake has been proven on this Kindle, and the manual power-button sleep path now returns a real photo instead of a white screen.
+- The manual KUAL fetch action is now proven too; it stays on the board instead of bouncing back to KUAL.
 - Long multi-day battery endurance is still an operational question. If you want maximum reliability, keep it charged.

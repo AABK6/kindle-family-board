@@ -25,8 +25,11 @@ Current production behavior is:
 - if the Kindle auto-sleeps during the morning window, the board remains visible as the sleeping cover
 - after the morning hold window, the Kindle switches back to a curated family photo screensaver set
 - the Kindle now fetches the immutable dated board asset for the expected day, not a mutable `latest.png` alias
+- KUAL exposes a manual `Family Board` action that fetches and displays today's board on demand
 
 The stale-board root cause was dependence on `latest.png`. The Kindle now requests `board-YYYY-MM-DD.png` for the expected render date, and the manifest exposes dated board metadata so that fetch is explicit.
+
+The timezone root cause was a corrupted persistent Kindle timezone file. The practical fix is a project-managed timezone asset plus explicit `TZ` in the scheduler/runtime path, re-applied by the boot self-heal. The raw shell `date` output on the Kindle can still look UTC-like unless the project timezone is forced, but the scheduler path now uses the correct local time.
 
 As of the current state of the repo, these behaviors have been live-tested on the actual device.
 
@@ -79,6 +82,7 @@ The Kindle runs a small shell-based runtime that:
 - keeps the board visible through sleep during the morning window
 - restores the normal photo screensaver set after the hold window
 - reseeds cron after reboot
+- provides a manual KUAL entrypoint for fetching and displaying today's board
 
 The Kindle runtime is intentionally small. The fragile logic lives mostly in shell scripts under `kindle/`.
 
@@ -117,6 +121,7 @@ The Kindle runtime is intentionally small. The fragile logic lives mostly in she
 - [C:\Users\aabec\Scripts\kindle-family-board\kindle\install_normal_screensavers.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\install_normal_screensavers.sh): install canonical photo set
 - [C:\Users\aabec\Scripts\kindle-family-board\kindle\boot_reseed.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\boot_reseed.sh): rewrite cron after reboot and restart the wake daemon
 - [C:\Users\aabec\Scripts\kindle-family-board\kindle\linkss_emergency.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\linkss_emergency.sh): `linkss` emergency hook that triggers boot reseeding
+- [C:\Users\aabec\Scripts\kindle-family-board\kindle\familyboard_kual.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\familyboard_kual.sh): manual KUAL entrypoint for today's board
 - [C:\Users\aabec\Scripts\kindle-family-board\kindle\board_screensaver_watchdog.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\board_screensaver_watchdog.sh): keeps the board visible during the morning window
 - [C:\Users\aabec\Scripts\kindle-family-board\kindle\start_board_watchdog.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\start_board_watchdog.sh)
 - [C:\Users\aabec\Scripts\kindle-family-board\kindle\stop_board_watchdog.sh](C:\Users\aabec\Scripts\kindle-family-board\kindle\stop_board_watchdog.sh)
@@ -356,6 +361,8 @@ This repo has several hidden contracts. Treat them as part of the system.
 - The Kindle host discovery logic scans the local `/24` and can fail if the Kindle is on a different subnet or the cached host is stale.
 - The GitHub Pages workflow is intentionally tolerant of schedule drift. Exact minute alignment is not reliable enough.
 - The morning fetch path now depends on dated assets, not on a mutable `latest.png` alias.
+- The manual KUAL action is intentionally backgrounded so KUAL does not repaint over the board.
+- The canonical stories source is [docs/stories.txt](C:\Users\aabec\Scripts\kindle-family-board\docs\stories.txt); [data/reading_carousel.md](C:\Users\aabec\Scripts\kindle-family-board\data\reading_carousel.md) should match it exactly.
 - Visual work is concentrated in one file, `render.py`, so even small badge or spacing changes can move a lot of layout.
 - The morning restore path depends on `linkss` being present and the Kindle framework being reset after restore for the steady-state screensaver path to remain healthy.
 
