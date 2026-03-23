@@ -35,6 +35,7 @@ class BoardConfig:
     board_url: str
     icon_style: str
     weather_icon_style: str
+    layout_variant: str
     image_width: int = 600
     image_height: int = 800
     weather_url: str = "https://api.open-meteo.com/v1/forecast"
@@ -51,6 +52,7 @@ class BoardConfig:
             board_url=os.getenv("KFB_BOARD_URL", "https://example.com/kindle-family-board/latest.png"),
             icon_style=os.getenv("KFB_ICON_STYLE", "burst"),
             weather_icon_style=os.getenv("KFB_WEATHER_ICON_STYLE", "classic"),
+            layout_variant=os.getenv("KFB_LAYOUT_VARIANT", "balanced"),
         )
 
     @property

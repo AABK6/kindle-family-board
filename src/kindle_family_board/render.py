@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
@@ -33,6 +34,130 @@ MONTH_NAMES = {
     11: "novembre",
     12: "decembre",
 }
+
+
+@dataclass(frozen=True)
+class TextBlockMetrics:
+    line_height: int
+    available_lines: int
+    total_lines: int
+    visible_lines: list[str]
+    truncated: bool
+
+
+@dataclass(frozen=True)
+class LayoutVariant:
+    name: str
+    weather_height: int
+    message_height: int
+    words_height: int
+    weather_mode: str
+    weather_label_size: int
+    weather_value_size: int
+    weather_small_size: int
+    note_font_size: int
+    note_line_gap: int
+    reading_title_size: int
+    reading_title_gap: int
+    reading_body_size: int
+    reading_body_gap: int
+    message_text_top: int
+    message_text_left: int
+    message_text_right: int
+    words_pill_top: int
+    words_pill_height: int
+
+
+LAYOUT_VARIANTS: dict[str, LayoutVariant] = {
+    "baseline": LayoutVariant(
+        name="baseline",
+        weather_height=138,
+        message_height=114,
+        words_height=100,
+        weather_mode="stacked",
+        weather_label_size=16,
+        weather_value_size=24,
+        weather_small_size=20,
+        note_font_size=21,
+        note_line_gap=7,
+        reading_title_size=24,
+        reading_title_gap=6,
+        reading_body_size=19,
+        reading_body_gap=7,
+        message_text_top=34,
+        message_text_left=92,
+        message_text_right=108,
+        words_pill_top=28,
+        words_pill_height=44,
+    ),
+    "balanced": LayoutVariant(
+        name="balanced",
+        weather_height=118,
+        message_height=102,
+        words_height=94,
+        weather_mode="paired",
+        weather_label_size=15,
+        weather_value_size=22,
+        weather_small_size=15,
+        note_font_size=20,
+        note_line_gap=6,
+        reading_title_size=24,
+        reading_title_gap=5,
+        reading_body_size=19,
+        reading_body_gap=6,
+        message_text_top=24,
+        message_text_left=90,
+        message_text_right=100,
+        words_pill_top=23,
+        words_pill_height=44,
+    ),
+    "story_plus": LayoutVariant(
+        name="story_plus",
+        weather_height=108,
+        message_height=94,
+        words_height=90,
+        weather_mode="inline",
+        weather_label_size=15,
+        weather_value_size=20,
+        weather_small_size=17,
+        note_font_size=19,
+        note_line_gap=6,
+        reading_title_size=23,
+        reading_title_gap=5,
+        reading_body_size=18,
+        reading_body_gap=6,
+        message_text_top=24,
+        message_text_left=86,
+        message_text_right=96,
+        words_pill_top=22,
+        words_pill_height=40,
+    ),
+    "story_max": LayoutVariant(
+        name="story_max",
+        weather_height=102,
+        message_height=90,
+        words_height=86,
+        weather_mode="inline",
+        weather_label_size=14,
+        weather_value_size=19,
+        weather_small_size=16,
+        note_font_size=18,
+        note_line_gap=5,
+        reading_title_size=22,
+        reading_title_gap=4,
+        reading_body_size=18,
+        reading_body_gap=5,
+        message_text_top=22,
+        message_text_left=84,
+        message_text_right=92,
+        words_pill_top=21,
+        words_pill_height=38,
+    ),
+}
+
+
+def get_layout_variant(config: BoardConfig) -> LayoutVariant:
+    return LAYOUT_VARIANTS.get(config.layout_variant, LAYOUT_VARIANTS["balanced"])
 
 
 def _existing(paths: Iterable[Path]) -> Path | None:
@@ -80,6 +205,47 @@ def wrap_text(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.ImageFont, m
     return lines
 
 
+def measure_text_block(
+    draw: ImageDraw.ImageDraw,
+    *,
+    text: str,
+    max_width: int,
+    max_height: int,
+    font: ImageFont.ImageFont,
+    line_gap: int = 6,
+) -> TextBlockMetrics:
+    lines = wrap_text(draw, text, font, max_width)
+    if not lines:
+        return TextBlockMetrics(
+            line_height=0,
+            available_lines=0,
+            total_lines=0,
+            visible_lines=[],
+            truncated=False,
+        )
+
+    _, _, _, sample_height = draw.textbbox((0, 0), "Ay", font=font)
+    line_height = sample_height + line_gap
+    available_lines = max(1, max_height // max(line_height, 1))
+    visible_lines = lines[:available_lines]
+    truncated = len(lines) > available_lines
+
+    if truncated:
+        last = visible_lines[-1]
+        ellipsis = "..."
+        while last and draw.textlength(f"{last}{ellipsis}", font=font) > max_width:
+            last = last[:-1]
+        visible_lines[-1] = f"{last.rstrip()}{ellipsis}"
+
+    return TextBlockMetrics(
+        line_height=line_height,
+        available_lines=available_lines,
+        total_lines=len(lines),
+        visible_lines=visible_lines,
+        truncated=truncated,
+    )
+
+
 def draw_text_block(
     draw: ImageDraw.ImageDraw,
     *,
@@ -91,28 +257,23 @@ def draw_text_block(
     font: ImageFont.ImageFont,
     fill: int = 0,
     line_gap: int = 6,
-) -> int:
-    lines = wrap_text(draw, text, font, max_width)
-    if not lines:
-        return y
-
-    _, _, _, sample_height = draw.textbbox((0, 0), "Ay", font=font)
-    line_height = sample_height + line_gap
-    available_lines = max(1, max_height // max(line_height, 1))
-
-    visible_lines = lines[:available_lines]
-    if len(lines) > available_lines:
-        last = visible_lines[-1]
-        ellipsis = "..."
-        while last and draw.textlength(f"{last}{ellipsis}", font=font) > max_width:
-            last = last[:-1]
-        visible_lines[-1] = f"{last.rstrip()}{ellipsis}"
+) -> tuple[int, bool]:
+    metrics = measure_text_block(
+        draw,
+        text=text,
+        max_width=max_width,
+        max_height=max_height,
+        font=font,
+        line_gap=line_gap,
+    )
+    if not metrics.visible_lines:
+        return y, False
 
     cursor_y = y
-    for line in visible_lines:
+    for line in metrics.visible_lines:
         draw.text((x, cursor_y), line, font=font, fill=fill)
-        cursor_y += line_height
-    return cursor_y
+        cursor_y += metrics.line_height
+    return cursor_y, metrics.truncated
 
 
 def draw_card(draw: ImageDraw.ImageDraw, box: tuple[int, int, int, int], *, fill: int = 245, outline: int = 0) -> None:
@@ -793,8 +954,44 @@ def draw_weather_period(
     value_font: ImageFont.ImageFont,
     small_font: ImageFont.ImageFont,
     weather_icon_style: str,
+    mode: str,
 ) -> None:
     left, top, right, bottom = box
+    rain_value = precipitation_probability if precipitation_probability is not None else 0
+    temperature_text = f"{temperature_c:.0f}\N{DEGREE SIGN}C"
+
+    if mode == "paired":
+        draw.text((left, top), label, font=label_font, fill=0)
+
+        icon_center = (left + 34, top + 49)
+        draw_condition_icon(draw, icon_center, weather_code, scale=0.94, style=weather_icon_style)
+
+        metrics_x = left + 82
+        temp_y = top + 23
+        draw.text((metrics_x, temp_y), temperature_text, font=value_font, fill=0)
+
+        drop_x = metrics_x + 6
+        drop_y = top + 58
+        draw_drop(draw, drop_x, drop_y, scale=0.62)
+        draw.text((metrics_x + 18, top + 48), f"{rain_value}%", font=small_font, fill=0)
+        return
+
+    if mode == "inline":
+        draw.text((left, top), label, font=label_font, fill=0)
+        row_y = top + 34
+        icon_center = (left + 21, row_y + 6)
+        draw_condition_icon(draw, icon_center, weather_code, scale=0.64, style=weather_icon_style)
+
+        thermo_x = left + 48
+        draw_thermometer(draw, thermo_x, row_y + 6, scale=0.78)
+        draw.text((thermo_x + 12, row_y - 6), temperature_text, font=value_font, fill=0)
+
+        temp_text_width = draw.textlength(temperature_text, font=value_font)
+        drop_x = min(int(thermo_x + 14 + temp_text_width + 20), right - 52)
+        draw_drop(draw, drop_x, row_y + 7, scale=0.7)
+        draw.text((drop_x + 12, row_y - 5), f"{rain_value}%", font=small_font, fill=0)
+        return
+
     center_x = (left + right) // 2
     draw.text((left, top), label, font=label_font, fill=0)
     draw_condition_icon(draw, (center_x, top + 43), weather_code, scale=1.04, style=weather_icon_style)
@@ -802,12 +999,11 @@ def draw_weather_period(
     thermo_x = left + 16
     temp_y = top + 76
     draw_thermometer(draw, thermo_x, temp_y, scale=1.0)
-    draw.text((thermo_x + 14, temp_y - 12), f"{temperature_c:.0f}C", font=value_font, fill=0)
+    draw.text((thermo_x + 14, temp_y - 12), temperature_text, font=value_font, fill=0)
 
     drop_x = left + 16
     rain_y = top + 106
     draw_drop(draw, drop_x, rain_y - 1, scale=0.85)
-    rain_value = precipitation_probability if precipitation_probability is not None else 0
     draw.text((drop_x + 14, rain_y - 12), f"{rain_value}%", font=small_font, fill=0)
 
 
@@ -818,7 +1014,8 @@ def draw_word_pill(
     text: str,
     font: ImageFont.ImageFont,
 ) -> None:
-    draw.rounded_rectangle(box, radius=14, fill=255, outline=0, width=2)
+    radius = max(14, (box[3] - box[1]) // 2)
+    draw.rounded_rectangle(box, radius=radius, fill=251, outline=160, width=1)
     text_width = draw.textlength(text, font=font)
     _, _, _, text_height = draw.textbbox((0, 0), text, font=font)
     x = box[0] + ((box[2] - box[0]) - text_width) / 2
@@ -833,7 +1030,51 @@ def format_french_date(content: BoardContent) -> str:
     return f"{weekday} {render_date.day} {month}"
 
 
+def reading_card_metrics(content: BoardContent, config: BoardConfig) -> dict[str, int | bool | str]:
+    layout = get_layout_variant(config)
+    image = Image.new("L", (config.image_width, config.image_height), color=255)
+    draw = ImageDraw.Draw(image)
+
+    margin = 26
+    card_gap = 16
+    y = 28 + 50 + 14 + 32
+    y += layout.weather_height + card_gap
+    y += layout.message_height + card_gap
+    y += layout.words_height + card_gap
+    reading_box = (margin, y, config.image_width - margin, config.image_height - 26)
+
+    reading_title_font = load_font(layout.reading_title_size, bold=True, serif=True)
+    reading_body_font = load_font(layout.reading_body_size)
+    title_metrics = measure_text_block(
+        draw,
+        text=content.reading.title,
+        max_width=reading_box[2] - reading_box[0] - 112,
+        max_height=66,
+        font=reading_title_font,
+        line_gap=layout.reading_title_gap,
+    )
+    title_bottom = reading_box[1] + 30 + len(title_metrics.visible_lines) * title_metrics.line_height
+    body_metrics = measure_text_block(
+        draw,
+        text=content.reading.body,
+        max_width=reading_box[2] - reading_box[0] - 64,
+        max_height=reading_box[3] - title_bottom - 34,
+        font=reading_body_font,
+        line_gap=layout.reading_body_gap,
+    )
+    return {
+        "variant": layout.name,
+        "title_truncated": title_metrics.truncated,
+        "body_truncated": body_metrics.truncated,
+        "body_lines": body_metrics.total_lines,
+        "body_capacity": body_metrics.available_lines,
+        "reading_height": reading_box[3] - reading_box[1],
+        "fits": (not title_metrics.truncated) and (not body_metrics.truncated),
+    }
+
+
 def render_board(content: BoardContent, config: BoardConfig, output_path: Path) -> Path:
+    layout = get_layout_variant(config)
     width = config.image_width
     height = config.image_height
     image = Image.new("L", (width, height), color=255)
@@ -841,13 +1082,13 @@ def render_board(content: BoardContent, config: BoardConfig, output_path: Path) 
 
     title_font = load_font(38, bold=True, serif=True)
     date_font = load_font(18)
-    note_font = load_font(21)
+    note_font = load_font(layout.note_font_size)
     word_font = load_font(26, bold=True)
-    reading_title_font = load_font(24, bold=True, serif=True)
-    reading_body_font = load_font(19)
-    weather_label_font = load_font(16, bold=True)
-    weather_value_font = load_font(24, bold=True)
-    weather_small_font = load_font(20)
+    reading_title_font = load_font(layout.reading_title_size, bold=True, serif=True)
+    reading_body_font = load_font(layout.reading_body_size)
+    weather_label_font = load_font(layout.weather_label_size, bold=True)
+    weather_value_font = load_font(layout.weather_value_size, bold=True)
+    weather_small_font = load_font(layout.weather_small_size)
 
     margin = 26
     card_gap = 16
@@ -860,14 +1101,16 @@ def render_board(content: BoardContent, config: BoardConfig, output_path: Path) 
     draw.line((margin, y + 14, width - margin, y + 14), fill=0, width=2)
     y += 32
 
-    weather_box = (margin, y, width - margin, y + 138)
+    weather_box = (margin, y, width - margin, y + layout.weather_height)
     draw_card(draw, weather_box, fill=246)
     draw_corner_badge(draw, weather_box, "weather", config.icon_style, weather_icon_style=config.weather_icon_style)
     divider_x = (weather_box[0] + weather_box[2]) // 2 + 10
-    draw.line((divider_x, weather_box[1] + 28, divider_x, weather_box[3] - 18), fill=210, width=2)
+    divider_fill = 220 if layout.weather_mode == "paired" else 210
+    divider_width = 1 if layout.weather_mode == "paired" else 2
+    draw.line((divider_x, weather_box[1] + 24, divider_x, weather_box[3] - 16), fill=divider_fill, width=divider_width)
 
-    left_period_box = (weather_box[0] + 96, weather_box[1] + 20, divider_x - 20, weather_box[3] - 14)
-    right_period_box = (divider_x + 22, weather_box[1] + 20, weather_box[2] - 20, weather_box[3] - 14)
+    left_period_box = (weather_box[0] + 96, weather_box[1] + 18, divider_x - 18, weather_box[3] - 14)
+    right_period_box = (divider_x + 20, weather_box[1] + 18, weather_box[2] - 20, weather_box[3] - 14)
     draw_weather_period(
         draw,
         box=left_period_box,
@@ -879,6 +1122,7 @@ def render_board(content: BoardContent, config: BoardConfig, output_path: Path) 
         value_font=weather_value_font,
         small_font=weather_small_font,
         weather_icon_style=config.weather_icon_style,
+        mode=layout.weather_mode,
     )
     draw_weather_period(
         draw,
@@ -891,30 +1135,45 @@ def render_board(content: BoardContent, config: BoardConfig, output_path: Path) 
         value_font=weather_value_font,
         small_font=weather_small_font,
         weather_icon_style=config.weather_icon_style,
+        mode=layout.weather_mode,
     )
     y = weather_box[3] + card_gap
 
-    message_box = (margin, y, width - margin, y + 114)
+    message_box = (margin, y, width - margin, y + layout.message_height)
     draw_card(draw, message_box, fill=248)
     draw_corner_badge(draw, message_box, "note", config.icon_style, weather_icon_style=config.weather_icon_style)
+    message_x = message_box[0] + layout.message_text_left
+    message_max_width = message_box[2] - message_box[0] - layout.message_text_right
+    message_area_top = message_box[1] + layout.message_text_top
+    message_area_bottom = message_box[3] - 16
+    message_metrics = measure_text_block(
+        draw,
+        text=content.family_message,
+        max_width=message_max_width,
+        max_height=message_area_bottom - message_area_top,
+        font=note_font,
+        line_gap=layout.note_line_gap,
+    )
+    message_height = len(message_metrics.visible_lines) * message_metrics.line_height
+    centered_message_y = message_area_top + max(0, ((message_area_bottom - message_area_top) - message_height) // 2)
     draw_text_block(
         draw,
         text=content.family_message,
-        x=message_box[0] + 92,
-        y=message_box[1] + 34,
-        max_width=message_box[2] - message_box[0] - 108,
-        max_height=64,
+        x=message_x,
+        y=centered_message_y,
+        max_width=message_max_width,
+        max_height=message_area_bottom - centered_message_y,
         font=note_font,
-        line_gap=7,
+        line_gap=layout.note_line_gap,
     )
     y = message_box[3] + card_gap
 
-    words_box = (margin, y, width - margin, y + 100)
+    words_box = (margin, y, width - margin, y + layout.words_height)
     draw_card(draw, words_box, fill=245)
     draw_corner_badge(draw, words_box, "words", config.icon_style, weather_icon_style=config.weather_icon_style)
-    pill_top = words_box[1] + 28
-    left_pill = (words_box[0] + 104, pill_top, words_box[0] + 292, pill_top + 44)
-    right_pill = (words_box[0] + 306, pill_top, words_box[2] - 18, pill_top + 44)
+    pill_top = words_box[1] + layout.words_pill_top
+    left_pill = (words_box[0] + 104, pill_top, words_box[0] + 292, pill_top + layout.words_pill_height)
+    right_pill = (words_box[0] + 306, pill_top, words_box[2] - 18, pill_top + layout.words_pill_height)
     draw_word_pill(draw, box=left_pill, text=content.practice_words[0], font=word_font)
     draw_word_pill(draw, box=right_pill, text=content.practice_words[1], font=word_font)
     y = words_box[3] + card_gap
@@ -922,7 +1181,7 @@ def render_board(content: BoardContent, config: BoardConfig, output_path: Path) 
     reading_box = (margin, y, width - margin, height - 26)
     draw_card(draw, reading_box, fill=246)
     draw_corner_badge(draw, reading_box, "story", config.icon_style, weather_icon_style=config.weather_icon_style)
-    title_bottom = draw_text_block(
+    title_bottom, _ = draw_text_block(
         draw,
         text=content.reading.title,
         x=reading_box[0] + 94,
@@ -930,7 +1189,7 @@ def render_board(content: BoardContent, config: BoardConfig, output_path: Path) 
         max_width=reading_box[2] - reading_box[0] - 112,
         max_height=66,
         font=reading_title_font,
-        line_gap=6,
+        line_gap=layout.reading_title_gap,
     )
     draw_text_block(
         draw,
@@ -940,7 +1199,7 @@ def render_board(content: BoardContent, config: BoardConfig, output_path: Path) 
         max_width=reading_box[2] - reading_box[0] - 64,
         max_height=reading_box[3] - title_bottom - 34,
         font=reading_body_font,
-        line_gap=7,
+        line_gap=layout.reading_body_gap,
     )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
