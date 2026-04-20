@@ -13,6 +13,7 @@ UNLINKSS_BIN="$LINKSS_DIR/bin/unlinkss"
 TMP_REFRESH_IMAGE="$ROOT_DIR/cache/restore-visible.png"
 BOARD_IMAGE_CACHE="$ROOT_DIR/cache/latest.png"
 NORMAL_SCREENSAVER_DIR="${KFB_NORMAL_SCREENSAVER_DIR:-$ROOT_DIR/normal-screensavers}"
+RESTORE_FAILED=0
 
 mkdir -p "$ROOT_DIR/cache"
 
@@ -133,9 +134,11 @@ if [ -x "$LINKSS_BIN" ]; then
     log "reinitialized regular linkss state"
   else
     log "regular linkss reinitialization failed"
+    RESTORE_FAILED=1
   fi
 else
   log "regular linkss binary missing, skipping reinitialization"
+  RESTORE_FAILED=1
 fi
 
 POWERD_STATUS="$(lipc-get-prop com.lab126.powerd status 2>/dev/null || true)"
@@ -146,6 +149,12 @@ if [ -n "$RESTORE_IMAGE" ]; then
   log "refreshed visible restored screensaver status=${POWERD_STATUS:-unknown} image=$RESTORE_IMAGE cache=$BOARD_IMAGE_CACHE"
 else
   log "no displayable restored screensaver found for visible refresh status=${POWERD_STATUS:-unknown}"
+fi
+
+if [ "$RESTORE_FAILED" -ne 0 ]; then
+  log "restore_screensavers encountered critical failures; preserving state for retry"
+  sync
+  exit 1
 fi
 
 rm -rf "$STATE_DIR"

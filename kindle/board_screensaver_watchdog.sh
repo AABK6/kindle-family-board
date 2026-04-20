@@ -8,6 +8,8 @@ LOG_FILE="$ROOT_DIR/cache/board-ss-watchdog.log"
 TOKEN_FILE="$ROOT_DIR/cache/board-ss-watchdog.token"
 LOCK_DIR="/var/local/run"
 LOCK_FILE="$LOCK_DIR/kfb-board-ss.lock"
+LOCK_OWNER_FILE="$LOCK_FILE/pid"
+SCRIPT_PATH="$ROOT_DIR/board_screensaver_watchdog.sh"
 TOKEN="${KFB_BOARD_WATCHDOG_TOKEN:-}"
 
 if [ -f "$ENV_FILE" ]; then
@@ -37,11 +39,79 @@ token_matches() {
   [ "$(cat "$TOKEN_FILE" 2>/dev/null)" = "$TOKEN" ]
 }
 
+pid_matches_watchdog() {
+  candidate_pid="$1"
+
+  if [ -z "$candidate_pid" ] || [ ! -f "/proc/$candidate_pid/cmdline" ]; then
+    return 1
+  fi
+
+  cmdline="$(tr '\000' ' ' < "/proc/$candidate_pid/cmdline" 2>/dev/null || true)"
+  case "$cmdline" in
+    *"$SCRIPT_PATH"*|*"board_screensaver_watchdog.sh"*)
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
+release_lock() {
+  if [ ! -d "$LOCK_FILE" ]; then
+    return 0
+  fi
+
+  owner_pid="$(cat "$LOCK_OWNER_FILE" 2>/dev/null || true)"
+  if [ -n "$owner_pid" ] && [ "$owner_pid" != "$$" ]; then
+    return 0
+  fi
+
+  rm -f "$LOCK_OWNER_FILE"
+  rmdir "$LOCK_FILE" 2>/dev/null || true
+}
+
+clear_stale_lock() {
+  if [ ! -d "$LOCK_FILE" ]; then
+    return 0
+  fi
+
+  owner_pid="$(cat "$LOCK_OWNER_FILE" 2>/dev/null || true)"
+  if [ -n "$owner_pid" ] && kill -0 "$owner_pid" 2>/dev/null && pid_matches_watchdog "$owner_pid"; then
+    return 1
+  fi
+
+  rm -f "$LOCK_OWNER_FILE"
+  if rmdir "$LOCK_FILE" 2>/dev/null; then
+    log "cleared stale screensaver lock owner=${owner_pid:-unknown}"
+    return 0
+  fi
+
+  log "failed to clear stale screensaver lock owner=${owner_pid:-unknown}"
+  return 1
+}
+
+acquire_lock() {
+  if mkdir "$LOCK_FILE" 2>/dev/null; then
+    printf '%s\n' "$$" > "$LOCK_OWNER_FILE"
+    return 0
+  fi
+
+  clear_stale_lock >/dev/null 2>&1 || true
+  if mkdir "$LOCK_FILE" 2>/dev/null; then
+    printf '%s\n' "$$" > "$LOCK_OWNER_FILE"
+    return 0
+  fi
+
+  return 1
+}
+
 cleanup() {
+  status="$?"
+  release_lock
   if token_matches; then
     rm -f "$PID_FILE"
   fi
-  exit 0
+  exit "$status"
 }
 
 trap cleanup EXIT SIGTERM
@@ -53,6 +123,8 @@ if ! token_matches; then
   exit 0
 fi
 
+clear_stale_lock >/dev/null 2>&1 || true
+
 while true; do
   lipc-wait-event -m -s 0 com.lab126.powerd goingToScreenSaver 2>/dev/null | while read line; do
     if echo "$line" | grep -q "goingToScreenSaver"; then
@@ -60,10 +132,10 @@ while true; do
         log "watchdog token cleared, exiting before redraw"
         exit 0
       fi
-      if mkdir "$LOCK_FILE" 2>/dev/null; then
+      if acquire_lock; then
         sleep 2
         if ! token_matches; then
-          rmdir "$LOCK_FILE" 2>/dev/null || true
+          release_lock
           log "watchdog token cleared, skipping redraw"
           exit 0
         fi
@@ -73,7 +145,7 @@ while true; do
         else
           log "board image missing: $IMAGE_PATH"
         fi
-        rmdir "$LOCK_FILE" 2>/dev/null || true
+        release_lock
       else
         log "screensaver redraw already in progress"
       fi
