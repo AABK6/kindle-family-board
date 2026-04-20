@@ -159,7 +159,7 @@ Typical flow:
 
 Important point: the workflow is intentionally tolerant of morning timing drift. The lesson from the history is that an exact one-minute window is too brittle.
 
-The schedule was narrowed from all-day runs to a morning-relevant UTC window, while the workflow still filters by local hour and skips once the current day is already published.
+The schedule now starts in the overnight UTC window, resolves the target board date in `Europe/Berlin`, and keeps retrying until that target date is published. This avoids depending on a first successful run after 07:00 local time.
 
 ### Kindle morning flow
 

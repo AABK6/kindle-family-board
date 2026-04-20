@@ -17,6 +17,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Build and publish the static site to the gh-pages branch.")
     parser.add_argument("--repo", default="AABK6/kindle-family-board", help="GitHub owner/repo.")
     parser.add_argument("--branch", default="gh-pages", help="Target branch for the static site.")
+    parser.add_argument("--date", help="Override the render date used during the site build (YYYY-MM-DD).")
     parser.add_argument("--skip-build", action="store_true", help="Publish the existing site/ directory without rebuilding it.")
     return parser.parse_args()
 
@@ -25,14 +26,17 @@ def run(cmd: list[str], cwd: Path) -> None:
     subprocess.run(cmd, cwd=str(cwd), check=True)
 
 
-def build_site() -> None:
-    run([sys.executable, str(REPO_ROOT / "scripts" / "build_site.py")], cwd=REPO_ROOT)
+def build_site(target_date: str | None = None) -> None:
+    cmd = [sys.executable, str(REPO_ROOT / "scripts" / "build_site.py")]
+    if target_date:
+        cmd.extend(["--date", target_date])
+    run(cmd, cwd=REPO_ROOT)
 
 
 def main() -> int:
     args = parse_args()
     if not args.skip_build:
-        build_site()
+        build_site(target_date=args.date)
 
     if not SITE_DIR.exists():
         raise RuntimeError(f"Site directory does not exist: {SITE_DIR}")

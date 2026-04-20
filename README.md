@@ -84,8 +84,8 @@ Output lands in:
 
 The primary hosting path is GitHub Pages.
 
-- [publish-board.yml](.github/workflows/publish-board.yml) runs four times per hour in a morning-relevant UTC window
-- The workflow republishes only during the local morning window in `Europe/Amsterdam` and skips once `latest.json` is already current for the day
+- [publish-board.yml](.github/workflows/publish-board.yml) runs four times per hour in an overnight UTC retry window
+- The workflow resolves the target board date in `Europe/Berlin`, starts retrying shortly after local midnight, and skips once `latest.json` is already current for that target date
 - The stable image URLs are `https://<your-username>.github.io/kindle-family-board/latest.png` and `https://<your-username>.github.io/kindle-family-board/board-YYYY-MM-DD.png`
 
 Manual publish fallback:

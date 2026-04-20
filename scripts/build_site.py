@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import argparse
+from datetime import date
 from pathlib import Path
 import sys
 
@@ -12,6 +14,12 @@ if str(SRC_DIR) not in sys.path:
 from kindle_family_board.config import BoardConfig  # noqa: E402
 from kindle_family_board.pipeline import generate_board  # noqa: E402
 from kindle_family_board.runtime import load_repo_env  # noqa: E402
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Build the static site output for the Kindle Family Board.")
+    parser.add_argument("--date", help="Override the render date (YYYY-MM-DD).")
+    return parser.parse_args()
 
 
 def build_index(site_dir: Path) -> None:
@@ -44,9 +52,11 @@ def build_index(site_dir: Path) -> None:
 
 def main() -> int:
     load_repo_env()
+    args = parse_args()
     config = BoardConfig.from_env()
     config.output_dir = REPO_ROOT / "site"
-    generate_board(config=config)
+    target_date = date.fromisoformat(args.date) if args.date else None
+    generate_board(config=config, target_date=target_date)
     build_index(config.output_dir)
     print(f"Built site in {config.output_dir}")
     return 0
