@@ -4,6 +4,33 @@ This file is the durable fallback memory for future orchestrator and subagent wo
 
 The thread remains the source of truth. If the thread and this file ever disagree, trust the thread first, then update this file when you are allowed to modify files.
 
+## Active Recovery Incident, 2026-04-20
+
+The physical Kindle Family Board device is currently in recovery/repair state, not normal operating state.
+
+Detailed handoff for a fresh Codex instance on the AMD PC lives at:
+
+- [docs/kindle-recovery-handoff.md](C:\Users\aabec\Scripts\kindle-family-board\docs\kindle-recovery-handoff.md)
+- `C:\Users\aabec\OneDrive\Documents\Playground\kindle-recovery\KINDLE_RECOVERY_HANDOFF.md`
+
+Critical current facts:
+
+- `Disable Diagnostics` has succeeded, so the problem is not just a stuck-diags boot flag.
+- Main boot reaches the Kindle tree/progress screen, then falls to `Your Kindle needs repair` with small `framework` text.
+- Tequila diags can be booted via `imx_usb_loader` from i.MX recovery `15a2:0052`.
+- USB storage appears as `1949:0004`, but Windows reports `No Media / 0 bytes`.
+- Diags USBnet appears as `0525:a4a2` and pings at `192.168.15.244`, but no SSH/telnet/HTTP ports are open.
+- SelectBoot fastboot payload loads but never enumerates as Kindle fastboot `1949:d0d0` on the ARM64 Windows/WSL host.
+- SelectBoot main payload loads and reaches the same repair screen.
+- `M) MoviNand` produced `user sw md5sum error, update again`; it is not the recovery FAT format path.
+- `D -> U USB Bundle Install` also leaves storage at `No Media / 0 bytes`.
+
+Current recovery recommendation:
+
+- Use Kubrick or equivalent K4 debrick tooling on an Intel/AMD Linux/live-USB host.
+- The user accepts wiping/factory reset/re-hacking if the Kindle remains usable.
+- After recovery, reinstall the jailbreak stack, USBNetwork, KUAL, linkss, then redeploy this repo with `scripts/deploy_to_kindle.py`.
+
 ## Purpose
 
 This repository turns a jailbroken Kindle 4 into a family morning board.
